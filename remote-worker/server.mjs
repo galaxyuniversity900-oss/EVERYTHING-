@@ -51,6 +51,8 @@ function readWorkerConfig(env) {
     const memory = memoryInput;
     const cpus = Number.isFinite(Number(app.cpus)) ? Math.max(0.25, Math.min(4, Number(app.cpus))) : 1;
     const pids = Number.isInteger(Number(app.pids)) ? Math.max(64, Math.min(512, Number(app.pids))) : 256;
+    const gpuCount = app.gpus === undefined ? 0 : Number(app.gpus);
+    if (!Number.isInteger(gpuCount) || gpuCount < 0 || gpuCount > 4) throw new Error(`App ${app.id} GPUs must be an integer between 0 and 4`);
     const envEntries = Object.entries(app.env || {});
     if (envEntries.length > 30 || envEntries.some(([key, value]) => !/^[A-Z_][A-Z0-9_]{0,63}$/.test(key) || typeof value !== "string" || value.length > 512 || /[\u0000\r\n]/.test(value))) {
       throw new Error(`App ${app.id} has invalid environment settings`);
@@ -69,6 +71,7 @@ function readWorkerConfig(env) {
       memory,
       cpus,
       pids,
+      gpuCount,
       capabilities,
       env: Object.fromEntries(envEntries)
     };
@@ -228,6 +231,7 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
       "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m"
     ];
     for (const capability of app.capabilities) args.push("--cap-add", capability);
+    if (app.gpuCount > 0) args.push("--gpus", String(app.gpuCount));
     for (const [key, value] of Object.entries(app.env)) args.push("--env", `${key}=${value}`);
     args.push(app.image);
     let started = false;
