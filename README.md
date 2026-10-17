@@ -24,6 +24,36 @@ The long-term goal is to make useful software accessible on modest devices witho
 
 The workspace checks browser-reported device memory (when available), logical CPU count, WebGPU exposure, network type, and data-saver preference. These are approximate signals, not benchmarks. Constrained devices are advised to avoid large local LLMs and parallel workloads; a configured remote worker is preferred only when available. If no worker is configured, the app recommends lightweight browser tools and a configured AI API. No model weights are downloaded automatically.
 
+## Optional server-hosted Ollama model
+
+The local `local-ai` Compose profile runs an Ollama inference server alongside the workspace. This keeps model weights and inference on the server, not on the user's phone. AI remains disabled unless you opt in. The default `qwen2.5:1.5b` model download is about 986 MB according to the [official Ollama model page](https://ollama.com/library/qwen2.5:1.5b); choose a smaller or larger model based on server capacity.
+
+1. Copy the environment template and edit `.env`.
+2. Set these values (the model name in `OLLAMA_MODEL` must match the provider profile's `model`):
+
+```env
+AI_API_ENABLED=true
+AI_ALLOW_INTERNAL_HTTP=true
+OLLAMA_MODEL=qwen2.5:1.5b
+OLLAMA_MEMORY_LIMIT=3g
+OLLAMA_CPUS=2.0
+AI_PROVIDERS_JSON='[{"id":"ollama","name":"Ollama (local service)","protocol":"openai-compatible","baseUrl":"http://ollama:11434/v1","model":"qwen2.5:1.5b","capabilities":["chat","coding"]}]'
+```
+
+3. Start the optional profile from the repository root:
+
+```sh
+docker compose --profile local-ai up -d
+docker compose logs -f ollama-model-init
+docker compose exec ollama ollama list
+```
+
+Wait for the model download to finish, then use **Test connection** in the AI panel and send a message. The model files are stored in the persistent `ollama-data` volume. The Ollama port is not published on the host; the workspace reaches the service over the private Compose network.
+
+`AI_ALLOW_INTERNAL_HTTP=true` only permits OpenAI-compatible HTTP endpoints whose hostname is a single-label internal service name, such as `ollama`. This is an explicit trust setting for private Compose networking, not a setting for public or untrusted endpoints. Keep AI disabled and this setting false when you do not need local inference. The default profile uses CPU inference and caps the Ollama container at 3 GB RAM and 2 CPUs; generation speed depends on the server's actual hardware. See [Ollama's Docker documentation](https://docs.ollama.com/docker) before adding GPU support.
+
+To stop inference while preserving downloaded models, run `docker compose stop ollama`. The regular workspace stays up.
+
 ## Catalog provenance and limits
 
 The catalog is curated from the upstream [HeyPuter/everything repository](https://github.com/HeyPuter/everything), whose README describes the project as MIT-licensed. Each entry links back to its upstream source. The `hosted` flag is set only when the upstream README provides a demo link without a “Demo URL not yet provided” warning. A hosted link is an external service and is not embedded or self-hosted by EVERYTHING-. Upstream links and availability may change; re-check the source before relying on a demo.
