@@ -9,23 +9,32 @@ test("legacy single-provider configuration remains supported", () => {
   assert.equal(result.providers[0].configured, true);
 });
 
-test("multiple providers resolve key references from the server environment", () => {
+test("multiple provider protocols resolve key references server-side", () => {
   const env = {
     AI_API_ENABLED: "true",
     AI_DEFAULT_PROVIDER: "nvidia",
-    NVIDIA_API_KEY: "key-value",
+    NVIDIA_API_KEY: "nvidia-key",
+    ANTHROPIC_API_KEY: "anthropic-key",
+    GEMINI_API_KEY: "gemini-key",
     AI_PROVIDERS_JSON: JSON.stringify([
       { id: "nvidia", name: "NVIDIA NIM", baseUrl: "https://integrate.api.nvidia.com/v1", model: "configured-model", apiKeyEnv: "NVIDIA_API_KEY", capabilities: ["chat", "reasoning"] },
-      { id: "local", name: "Local model", baseUrl: "http://127.0.0.1:11434/v1", model: "local-model", capabilities: ["chat"] }
+      { id: "local", name: "Local model", baseUrl: "http://127.0.0.1:11434/v1", model: "local-model", capabilities: ["chat"] },
+      { id: "claude", name: "Anthropic", protocol: "anthropic", baseUrl: "https://api.anthropic.com/v1", model: "configured-model", apiKeyEnv: "ANTHROPIC_API_KEY", capabilities: ["chat", "reasoning"] },
+      { id: "gemini", name: "Google Gemini", protocol: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-test", apiKeyEnv: "GEMINI_API_KEY", capabilities: ["chat", "coding"] }
     ])
   };
   const result = getAIProviderRegistry(env);
   assert.equal(result.defaultProviderId, "nvidia");
-  assert.equal(result.providers[0].apiKey, "key-value");
+  assert.equal(result.providers[0].apiKey, "nvidia-key");
   assert.equal(result.providers[1].configured, true);
+  assert.equal(result.providers[2].protocol, "anthropic");
+  assert.equal(result.providers[2].configured, true);
+  assert.equal(result.providers[3].protocol, "gemini");
+  assert.equal(result.providers[3].configured, true);
   const publicView = publicAIProviderRegistry(env);
-  assert.equal(JSON.stringify(publicView).includes("key-value"), false);
-  assert.equal(publicView.providers.length, 2);
+  assert.equal(JSON.stringify(publicView).includes("nvidia-key"), false);
+  assert.equal(JSON.stringify(publicView).includes("anthropic-key"), false);
+  assert.equal(publicView.providers.length, 4);
 });
 
 test("invalid provider JSON is reported without exposing the raw parse message publicly", () => {
