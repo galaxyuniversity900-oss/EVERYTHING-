@@ -12,6 +12,7 @@
 - A shared-password access gate is available, but multi-user identity/roles and persistent server-side user storage are not implemented. The remote session adapter requires an external worker.
 - MCP bearer tokens are shared server configuration in this version, not per-user credentials.
 - Public-host mode requires an access password, Secure cookies, a trusted hostname allowlist, and an HTTPS reverse proxy that sets `X-Forwarded-Proto` correctly. Do not expose the Node port directly.
+- The Docker worker must run on a dedicated host with trusted/pinned images, loopback-only container port bindings, and a reverse proxy. Session URLs are bearer credentials; avoid logging wildcard session hostnames. Sessions are ephemeral and are not a hostile-code multi-tenant sandbox.
 - The service worker fails closed for offline catalog access until it has confirmed authentication is disabled. A `401` response clears any cached catalog copy so a previous authorized visit does not leave the app directory available offline after sign-out.
 - Browser-local notes and prompts are stored in IndexedDB without application-level encryption. They are not sent to the server automatically, but scripts running on the same origin can access them; avoid storing passwords, API keys, or other secrets there.
 
