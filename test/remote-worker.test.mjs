@@ -81,9 +81,29 @@ test("worker rejects untrusted API Host headers", async () => {
   const worker = makeWorker();
   const base = await listen(worker);
   try {
-    const response = await fetch(base + "/api/health", { headers: { host: "attacker.example" } });
-    assert.equal(response.status, 403);
-    assert.equal((await response.json()).error.code, "untrusted_host");
+    const url = new URL(base);
+    const status = await new Promise((resolve, reject) => {
+      const request = httpRequest({
+        hostname: url.hostname,
+        port: Number(url.port),
+        path: "/api/health",
+        method: "GET",
+        headers: { host: "attacker.example", "x-forwarded-proto": "https" }
+      }, (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { body += chunk; });
+        response.on("end", () => {
+          try {
+            assert.equal(JSON.parse(body).error.code, "untrusted_host");
+            resolve(response.statusCode);
+          } catch (error) { reject(error); }
+        });
+      });
+      request.on("error", reject);
+      request.end();
+    });
+    assert.equal(status, 403);
   } finally { await worker.close(); }
 });
 
