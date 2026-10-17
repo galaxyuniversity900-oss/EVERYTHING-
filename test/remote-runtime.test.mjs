@@ -16,7 +16,7 @@ test("remote runtime discovers supported apps from its configured provider", asy
     fetchImpl: async (url, options) => {
       assert.equal(String(url), "https://runtime.example.test/v1/capabilities");
       assert.equal(options.headers.authorization, undefined);
-      return new Response(JSON.stringify({ provider: "test-provider", apps: [{ id: "editor", name: "Remote Editor", resources: { memory: "2g", cpus: 2, pids: 256, gpus: 1 } }, { id: "bad id" }] }), {
+      return new Response(JSON.stringify({ provider: "test-provider", apps: [{ id: "editor", name: "Remote Editor", resources: { memory: "2g", shmSize: "512m", cpus: 2, pids: 256, gpus: 1 } }, { id: "bad id" }] }), {
         status: 200, headers: { "content-type": "application/json" }
       });
     }
@@ -24,7 +24,7 @@ test("remote runtime discovers supported apps from its configured provider", asy
   const result = await runtime.capabilities();
   assert.equal(result.provider, "test-provider");
   assert.deepEqual(result.apps.map((app) => app.id), ["editor"]);
-  assert.deepEqual(result.apps[0].resources, { memory: "2g", cpus: 2, pids: 256, gpus: 1 });
+  assert.deepEqual(result.apps[0].resources, { memory: "2g", shmSize: "512m", cpus: 2, pids: 256, gpus: 1 });
 });
 
 test("remote runtime sends its token and validates returned session URLs", async () => {

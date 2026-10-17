@@ -143,7 +143,7 @@ test("worker advertises only configured apps and launches allowlisted containers
     assert.equal(capabilities.status, 200);
     const advertisedApps = (await capabilities.json()).apps;
     assert.deepEqual(advertisedApps.map((app) => app.id), ["desktop"]);
-    assert.deepEqual(advertisedApps[0].resources, { memory: "1g", cpus: 1, pids: 128, gpus: 0 });
+    assert.deepEqual(advertisedApps[0].resources, { memory: "1g", shmSize: "256m", cpus: 1, pids: 128, gpus: 0 });
 
     const bad = await fetch(`${base}/v1/sessions`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -285,5 +285,35 @@ test("worker rejects invalid GPU allocation counts in app configuration", () => 
         WORKER_APPS_JSON: JSON.stringify([{ ...apps[0], gpus }])
       }
     }), /GPUs must be an integer between 0 and 4/);
+  }
+});
+
+
+test("worker applies configured shared-memory limits to Docker containers", async () => {
+  const worker = makeWorker({ appConfigs: [{ ...apps[0], shmSize: "1g" }] });
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    });
+    assert.equal(response.status, 201);
+    const runArgs = worker.calls.find((args) => args[0] === "run");
+    assert.ok(runArgs.includes("--shm-size"));
+    assert.ok(runArgs.includes("1g"));
+  } finally { await worker.close(); }
+});
+
+test("worker rejects shared-memory limits outside the configured safe range", () => {
+  for (const shmSize of ["1m", "3g", "not-a-size"]) {
+    assert.throws(() => createRemoteWorker({
+      env: {
+        WORKER_TOKEN: token,
+        WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
+        WORKER_SESSION_BASE_URL: "https://sessions.example.test",
+        WORKER_APPS_JSON: JSON.stringify([{ ...apps[0], shmSize }])
+      }
+    }), /shmSize must be between 64m and 2g/);
   }
 });
