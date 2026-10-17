@@ -15,5 +15,5 @@ test("auth-required catalog responses are not stored for offline use", () => {
   assert.match(worker, /if \(response\.status === 401\)/);
   assert.match(worker, /await cache\.delete\(request\)/);
   assert.match(worker, /if \(await isAuthRequired\(cache\)\) await cache\.delete\(request\)/);
-  assert.match(worker, /everything-shell-v6/);
+  assert.match(worker, /everything-shell-v7/);
 });
