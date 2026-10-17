@@ -1,4 +1,4 @@
-const CACHE_NAME = "everything-shell-v5";
+const CACHE_NAME = "everything-shell-v6";
 const AUTH_MODE_KEY = "/__everything_auth_mode__";
 const SHELL_ASSETS = [
   "/", "/styles.css", "/auth.css", "/ai.css", "/mcp.css", "/remote.css",
