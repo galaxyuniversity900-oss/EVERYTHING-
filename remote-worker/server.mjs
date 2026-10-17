@@ -49,6 +49,11 @@ function readWorkerConfig(env) {
     const memoryMiB = memoryMatch ? Number(memoryMatch[1]) * (memoryMatch[2] === "g" ? 1024 : 1) : 0;
     if (!Number.isSafeInteger(memoryMiB) || memoryMiB < 128 || memoryMiB > 16 * 1024) throw new Error(`App ${app.id} memory must be between 128m and 16g`);
     const memory = memoryInput;
+    const shmInput = typeof app.shmSize === "string" ? app.shmSize : "256m";
+    const shmMatch = /^(\\d+)(m|g)$/.exec(shmInput);
+    const shmMiB = shmMatch ? Number(shmMatch[1]) * (shmMatch[2] === "g" ? 1024 : 1) : 0;
+    if (!Number.isSafeInteger(shmMiB) || shmMiB < 64 || shmMiB > 2048) throw new Error(`App ${app.id} shmSize must be between 64m and 2g`);
+    const shmSize = shmInput;
     const cpus = Number.isFinite(Number(app.cpus)) ? Math.max(0.25, Math.min(4, Number(app.cpus))) : 1;
     const pids = Number.isInteger(Number(app.pids)) ? Math.max(64, Math.min(512, Number(app.pids))) : 256;
     const gpuCount = app.gpus === undefined ? 0 : Number(app.gpus);
@@ -69,6 +74,7 @@ function readWorkerConfig(env) {
       image: app.image,
       port,
       memory,
+      shmSize,
       cpus,
       pids,
       gpuCount,
@@ -226,7 +232,7 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
       "--pids-limit", String(app.pids),
       "--security-opt", "no-new-privileges:true",
       "--cap-drop", "ALL",
-      "--shm-size", "256m",
+      "--shm-size", app.shmSize,
       "--publish", `127.0.0.1::${app.port}/tcp`,
       "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m"
     ];
@@ -357,9 +363,9 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
     if (req.method === "GET" && url.pathname === "/v1/capabilities") {
       return sendJson(res, 200, {
         provider: "EVERYTHING Docker Session Worker",
-        apps: config.apps.map(({ id, name, description, memory, cpus, pids, gpuCount }) => ({
+        apps: config.apps.map(({ id, name, description, memory, shmSize, cpus, pids, gpuCount }) => ({
           id, name, description,
-          resources: { memory, cpus, pids, gpus: gpuCount }
+          resources: { memory, shmSize, cpus, pids, gpus: gpuCount }
         }))
       });
     }
