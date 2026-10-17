@@ -74,6 +74,6 @@ export function publicAIProviderRegistry(env = process.env) {
     enabled: registry.providers.some((provider) => provider.configured),
     defaultProviderId: registry.defaultProviderId,
     fallbackEnabled: registry.fallbackEnabled,
-    configurationError: registry.configurationError
+    configurationError: registry.configurationError ? "AI_PROVIDERS_JSON is invalid; review server configuration." : null
   };
 }
