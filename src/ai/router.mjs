@@ -1,4 +1,4 @@
-import { createChatCompletion } from "./openai-compatible.mjs";
+import { createProviderCompletion } from "./provider-adapters.mjs";
 import { getAIProviderRegistry } from "./provider-registry.mjs";
 
 export async function routeAIChat({ env = process.env, messages, providerId, task = "chat", fetchImpl = fetch } = {}) {
@@ -27,14 +27,8 @@ export async function routeAIChat({ env = process.env, messages, providerId, tas
   let lastError;
   for (const provider of ordered) {
     try {
-      const result = await createChatCompletion({
-        apiKey: provider.apiKey,
-        baseUrl: provider.baseUrl,
-        model: provider.model,
-        messages,
-        fetchImpl
-      });
-      return { ...result, providerId: provider.id, providerName: provider.name, task };
+      const result = await createProviderCompletion({ provider, messages, fetchImpl });
+      return { ...result, providerId: provider.id, providerName: provider.name, protocol: provider.protocol, task };
     } catch (error) {
       lastError = error;
       if (!registry.fallbackEnabled || ![429, 502, 503, 504].includes(error.status)) throw error;
