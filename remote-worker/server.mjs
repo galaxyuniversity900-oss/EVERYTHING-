@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { request as httpRequest } from "node:http";
+import { connect as connectTcp } from "node:net";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -9,6 +10,37 @@ const MAX_BODY_BYTES = 16 * 1024;
 const MAX_API_RESPONSE_BYTES = 256 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const ALLOWED_CAPABILITIES = new Set(["CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "SETGID", "SETUID", "SETPCAP", "NET_BIND_SERVICE", "SYS_CHROOT", "MKNOD", "AUDIT_WRITE"]);
+
+function waitForTcpPort(port, { timeoutMs = 20_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve) => {
+    let settled = false;
+    let retryTimer;
+    const finish = (ready) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(retryTimer);
+      resolve(ready);
+    };
+    const attempt = () => {
+      if (Date.now() >= deadline) return finish(false);
+      const socket = connectTcp({ host: "127.0.0.1", port });
+      let retrying = false;
+      socket.setTimeout(500);
+      socket.once("connect", () => { socket.destroy(); finish(true); });
+      const retry = () => {
+        if (settled || retrying) return;
+        retrying = true;
+        socket.destroy();
+        if (Date.now() >= deadline) finish(false);
+        else retryTimer = setTimeout(attempt, 150);
+      };
+      socket.once("error", retry);
+      socket.once("timeout", retry);
+    };
+    attempt();
+  });
+}
 
 function httpError(status, code, message) {
   const error = new Error(message);
@@ -97,7 +129,8 @@ function readWorkerConfig(env) {
     port: integerSetting("WORKER_PORT", 8788, 0, 65535),
     maxSessions: integerSetting("WORKER_MAX_SESSIONS", 3, 1, 20),
     ttlMs: integerSetting("WORKER_SESSION_TTL_MINUTES", 60, 5, 1440) * 60_000,
-    idleMs: integerSetting("WORKER_IDLE_TIMEOUT_MINUTES", 15, 1, 240) * 60_000
+    idleMs: integerSetting("WORKER_IDLE_TIMEOUT_MINUTES", 15, 1, 240) * 60_000,
+    startupTimeoutMs: integerSetting("WORKER_STARTUP_TIMEOUT_SECONDS", 20, 5, 60) * 1000
   };
 }
 
@@ -143,7 +176,7 @@ function isLoopbackHost(hostname) {
   return LOOPBACK_HOSTS.has(hostname);
 }
 
-export function createRemoteWorker({ env = process.env, execFileImpl = execFileDefault, now = () => Date.now(), randomBytesImpl = randomBytes } = {}) {
+export function createRemoteWorker({ env = process.env, execFileImpl = execFileDefault, probePortImpl = waitForTcpPort, now = () => Date.now(), randomBytesImpl = randomBytes } = {}) {
   const config = readWorkerConfig(env);
   const appsById = new Map(config.apps.map((app) => [app.id, app]));
   const sessions = new Map();
@@ -248,6 +281,8 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
       const portResult = await docker(["port", containerName, `${app.port}/tcp`]);
       const match = /127\.0\.0\.1:(\d+)/.exec(String(portResult.stdout || ""));
       if (!match) throw httpError(502, "container_port_unavailable", "The container did not expose its configured port on loopback");
+      const ready = await probePortImpl(Number(match[1]), { timeoutMs: config.startupTimeoutMs });
+      if (!ready) throw httpError(504, "container_startup_timeout", "The remote application did not accept connections before the startup timeout");
       const createdAt = now();
       const session = {
         id, appId, containerName, hostPort: Number(match[1]), viewToken,
