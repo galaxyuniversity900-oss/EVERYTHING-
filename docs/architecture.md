@@ -10,7 +10,8 @@
 ## Trust boundaries
 
 - The default bind address is loopback.
-- State-changing APIs reject non-loopback Host headers in this development build.
+- By default, requests are restricted to loopback hosts. Public hostnames are accepted only when a shared password, Secure cookies, a trusted hostname, and HTTPS proxy metadata are configured.
+- An optional shared-password gate protects API routes with in-memory 12-hour sessions; this is not multi-user identity or role-based authorization.
 - AI, MCP and remote runtime endpoints are optional and require server-side configuration.
 - MCP tools may have side effects. Confirmation UI helps prevent accidental calls but is not a substitute for authentication or per-user authorization.
 - The remote adapter does not sandbox programs. The configured remote provider must implement isolation and resource quotas.
@@ -18,4 +19,4 @@
 
 ## Missing before production
 
-Authentication and user isolation, durable rate limiting, per-user provider secrets, audit logs, remote-worker deployment, session persistence, storage, production proxy configuration, monitoring, backups, and a full security review.
+Multi-user identity and user isolation, durable rate limiting, per-user provider secrets, audit logs, remote-worker deployment, persistent session storage, production proxy hardening, monitoring, backups, and a full security review.
