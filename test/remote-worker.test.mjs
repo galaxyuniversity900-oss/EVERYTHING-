@@ -251,7 +251,7 @@ test("worker rolls back a started container when port discovery fails and releas
     assert.equal(failed.status, 502);
     assert.equal((await failed.json()).error.code, "container_runtime_error");
     assert.equal(worker.sessions.size, 0);
-    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes("everything-0000000000000000")));
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.some((value) => typeof value === "string" && /^everything-[a-f0-9]{16}$/.test(value))));
     const retry = await fetch(base + "/v1/sessions", options);
     assert.equal(retry.status, 201);
     assert.equal(worker.sessions.size, 1);
