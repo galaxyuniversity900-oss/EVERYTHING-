@@ -126,7 +126,7 @@ This repository links to selected apps and source directories in [HeyPuter/every
 
 ## Contributing and security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [docs/architecture.md](docs/architecture.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [docs/architecture.md](docs/architecture.md), and [docs/low-resource-strategy.md](docs/low-resource-strategy.md).
 
 ## License
 
