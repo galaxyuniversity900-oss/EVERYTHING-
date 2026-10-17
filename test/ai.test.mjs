@@ -44,3 +44,20 @@ test("AI adapter refuses cleartext remote provider URLs", async () => {
     (error) => error.code === "insecure_provider_url"
   );
 });
+
+test("AI adapter supports a keyless localhost-compatible inference server", async () => {
+  let authHeader;
+  const result = await createChatCompletion({
+    baseUrl: "http://127.0.0.1:11434/v1",
+    model: "local-model",
+    messages: [{ role: "user", content: "hello local model" }],
+    fetchImpl: async (_url, options) => {
+      authHeader = options.headers.authorization;
+      return new Response(JSON.stringify({ choices: [{ message: { content: "local response" } }] }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+  });
+  assert.equal(authHeader, undefined);
+  assert.equal(result.content, "local response");
+});
