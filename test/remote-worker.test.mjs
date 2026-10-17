@@ -34,7 +34,7 @@ async function listen(worker) {
   return `http://127.0.0.1:${worker.server.address().port}`;
 }
 
-function requestSessionHost(base, host) {
+function requestSessionHost(base, host, forwardedProto = "https") {
   const url = new URL(base);
   return new Promise((resolve, reject) => {
     const request = httpRequest({
@@ -42,7 +42,7 @@ function requestSessionHost(base, host) {
       port: Number(url.port),
       path: "/",
       method: "GET",
-      headers: { host, "x-forwarded-proto": "https" }
+      headers: { host, "x-forwarded-proto": forwardedProto }
     }, (response) => {
       response.resume();
       resolve(response.statusCode);
@@ -74,6 +74,39 @@ test("worker requires bearer authentication for capabilities", async () => {
     assert.equal(response.status, 401);
     const health = await fetch(`${base}/api/health`);
     assert.equal(health.status, 200);
+  } finally { await worker.close(); }
+});
+
+test("worker rejects untrusted API Host headers", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/api/health", { headers: { host: "attacker.example" } });
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).error.code, "untrusted_host");
+  } finally { await worker.close(); }
+});
+
+test("session proxy requires the correct view token and forwarded HTTPS", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    });
+    assert.equal(response.status, 201);
+    const session = await response.json();
+    const sessionHost = new URL(session.url).host;
+    const [label, ...domain] = sessionHost.split(".");
+    const [id, viewToken] = label.split("-");
+    assert.match(id, /^[a-f0-9]{16}$/);
+    assert.match(viewToken, /^[a-f0-9]{32}$/);
+    const wrongTokenHost = `${id}-${"0".repeat(32)}.${domain.join(".")}`;
+    assert.equal(await requestSessionHost(base, wrongTokenHost), 404);
+    assert.equal(await requestSessionHost(base, sessionHost, "http"), 404);
+    assert.equal(worker.sessions.size, 1);
   } finally { await worker.close(); }
 });
 
