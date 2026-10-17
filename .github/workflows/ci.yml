@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "foundation/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12"
+      - name: Run unit tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.mjs
+          node --check src/registry.mjs
+          node --check src/ai/openai-compatible.mjs
+          node --check src/ai/provider-registry.mjs
+          node --check src/ai/router.mjs
+          node --check src/ai/provider-adapters.mjs
+          node --check src/runtime/capabilities.mjs
+          node --check src/runtime/remote-provider.mjs
+          node --check src/mcp/client.mjs
+          node --check public/app.js
+          node --check public/ai.js
+          node --check public/runtime.js
+          node --check public/mcp.js
+          node --check public/remote.js
+          node --check public/sw.js
+      - name: Smoke-test HTTP APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT=18787 node server.mjs > /tmp/everything-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18787/api/health > /tmp/everything-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const health = JSON.parse(fs.readFileSync("/tmp/everything-health.json", "utf8"));
+            if (health.status !== "ok") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.name !== "EVERYTHING- Workspace") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/apps | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (!Array.isArray(payload.apps) || payload.apps.length < 10) process.exit(1);
+            if (!payload.apps.some((app) => app.hosted === false)) process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/ai/providers | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.enabled !== false) process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/mcp/status | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.configured !== false) process.exit(1);
+          '
+          curl --fail --silent 'http://127.0.0.1:18787/api/runtime/capabilities?wasm=1&webgpu=0' | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (!payload.capabilities || payload.remoteSessionAdapterImplemented !== true || payload.remoteRuntimeConfigured !== false) process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/runtime/remote/status | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.configured !== false) process.exit(1);
+          '
+          AI_STATUS=$(curl --silent --output /tmp/everything-ai-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/ai/chat -H 'content-type: application/json' --data '{"messages":[{"role":"user","content":"test"}]}')
+          test "$AI_STATUS" = "503"
+          MCP_STATUS=$(curl --silent --output /tmp/everything-mcp-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
+          test "$MCP_STATUS" = "503"
+          REMOTE_STATUS=$(curl --silent --output /tmp/everything-remote-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/runtime/remote/sessions -H 'content-type: application/json' --data '{"appId":"editor","confirmed":true}')
+          test "$REMOTE_STATUS" = "503"
+          HOST_STATUS=$(curl --silent --output /tmp/everything-host-blocked.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Host: attacker.example' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
+          test "$HOST_STATUS" = "403"

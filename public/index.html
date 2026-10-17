@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171914">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <meta name="description" content="A lightweight workspace for browser-based apps, with optional server-side AI integration.">
+  <title>EVERYTHING- | Lightweight Workspace</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/ai.css">
+  <link rel="stylesheet" href="/mcp.css">
+  <link rel="stylesheet" href="/remote.css">
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/ai.js"></script>
+  <script type="module" src="/runtime.js"></script>
+  <script type="module" src="/mcp.js"></script>
+  <script type="module" src="/remote.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="EVERYTHING home"><span class="brand-mark">E</span><span>EVERYTHING<span class="brand-dash">-</span></span></a>
+    <div class="system-state"><span class="state-dot" id="health-dot"></span><span id="health-label">Checking core…</span></div>
+  </header>
+  <main class="layout">
+    <section class="hero">
+      <p class="eyebrow">ONE WORKSPACE · LIGHTWEIGHT BY DESIGN</p>
+      <h1>Your tools.<br><span>Without the heavy install.</span></h1>
+      <p class="hero-copy">Discover browser-based applications from one place. Heavy workloads need a compatible browser runtime or a configured remote service; this workspace does not pretend every desktop program can run on every phone.</p>
+      <div class="hero-meta"><span id="app-count">Loading catalog…</span><span class="meta-divider">/</span><span>Small Node.js service · no runtime dependencies</span></div>
+    </section>
+
+    <section class="catalog" aria-labelledby="catalog-title">
+      <div class="section-head">
+        <div><p class="eyebrow">APP DIRECTORY</p><h2 id="catalog-title">Pick a workspace</h2></div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search apps or categories" autocomplete="off" aria-label="Search apps or categories"></label>
+      </div>
+      <nav class="filters" id="filters" aria-label="Filter applications"></nav>
+      <div id="apps" class="app-grid" aria-live="polite"><p class="empty">Loading applications…</p></div>
+      <p class="catalog-note">External apps open on their own websites. They are not hosted by this project. Availability, features, accounts and data policies are controlled by each provider.</p>
+    </section>
+
+    <section class="ai-section" aria-labelledby="ai-title">
+      <div class="ai-heading"><p class="eyebrow">OPTIONAL AI GATEWAY</p><h2 id="ai-title">Ask a model.<br><span>Keep keys on the server.</span></h2><p>Enable this only after configuring a provider on the server. Messages are sent to that configured provider; do not submit sensitive data unless you understand its data policy.</p><div id="ai-status" class="ai-status" role="status">Checking AI provider configuration…</div></div>
+      <div class="chat-panel">
+        <div class="ai-controls"><label for="ai-provider">Provider / model<select id="ai-provider"><option value="">Auto route</option></select></label><label for="ai-task">Task<select id="ai-task"><option value="chat">General chat</option><option value="coding">Coding</option><option value="reasoning">Reasoning</option><option value="fast">Fast response</option></select></label></div>
+        <div id="ai-output" class="chat-output" aria-live="polite"><p class="chat-empty">AI is optional and disabled until explicitly configured.</p></div>
+        <form id="ai-form" class="chat-form">
+          <label class="sr-only" for="ai-input">Message for the AI model</label>
+          <textarea id="ai-input" rows="3" maxlength="12000" placeholder="Ask a question…" required></textarea>
+          <button id="ai-send" type="submit">Send ↗</button>
+        </form>
+      </div>
+    </section>
+
+
+    <section class="mcp-section" aria-labelledby="mcp-title">
+      <div class="mcp-heading"><p class="eyebrow">MODEL CONTEXT PROTOCOL</p><h2 id="mcp-title">Connect tools.<br>Approve every action.</h2><p>Configure one trusted MCP Streamable HTTP server in the local server environment. Tool execution requires an explicit confirmation and may have side effects. Do not connect untrusted servers.</p><div id="mcp-status" class="ai-status" role="status">Checking MCP configuration…</div><button id="mcp-refresh" class="secondary-button" type="button">Discover tools ↻</button></div>
+      <div class="mcp-panel">
+        <h3>Available tools</h3><ul id="mcp-tools" class="mcp-tools"><li>Waiting for MCP configuration.</li></ul>
+        <form id="mcp-form" class="mcp-form">
+          <label for="mcp-tool-name">Tool name</label><input id="mcp-tool-name" maxlength="128" autocomplete="off" placeholder="Choose a discovered tool" required>
+          <label for="mcp-arguments">Arguments (JSON object)</label><textarea id="mcp-arguments" rows="4" placeholder='{"example":"value"}'>{}</textarea>
+          <label class="confirm-label"><input id="mcp-confirm" type="checkbox"> I reviewed this tool and its arguments and approve the call.</label>
+          <button id="mcp-run" type="submit">Run confirmed tool ↗</button>
+        </form>
+        <pre id="mcp-output" class="mcp-output" aria-live="polite">Tool results will appear here.</pre>
+      </div>
+    </section>
+
+    <section class="runtime-section" aria-labelledby="runtime-title">
+      <div><p class="eyebrow">DEVICE CAPABILITY CHECK</p><h2 id="runtime-title">Choose the right execution path.</h2><p class="runtime-copy">This checks browser features only. It does not benchmark the device or prove that a specific app/model will fit in memory.</p></div>
+      <div class="runtime-result"><span id="runtime-mode">Checking browser…</span><p id="runtime-details">Reading available browser capabilities.</p></div>
+    </section>
+
+
+    <section class="remote-section" aria-labelledby="remote-title">
+      <div class="remote-section-head">
+        <div><p class="eyebrow">REMOTE WORKSPACE RUNTIME</p><h2 id="remote-title">Run heavy apps on another machine.</h2><p>Connect a trusted runtime service to launch apps remotely. This repository contains the session adapter and client UI, but does not include or host the remote worker itself.</p></div>
+        <button id="remote-refresh" class="secondary-button" type="button">Refresh remote apps ↻</button>
+      </div>
+      <div id="remote-status" class="remote-status" role="status">Checking remote runtime configuration…</div>
+      <div id="remote-apps" class="remote-apps"><p class="remote-empty">No runtime configured yet.</p></div>
+      <div id="remote-sessions" class="remote-sessions" aria-live="polite"></div>
+    </section>
+
+    <section class="roadmap">
+      <div><p class="eyebrow">ENGINEERING ROADMAP</p><h2>Light interface.<br>Real execution.</h2></div>
+      <div class="roadmap-items">
+        <article><span class="step">01</span><div><h3>Workspace core</h3><p>App registry, responsive directory, catalog API and automated CI.</p><span class="tag tag-live">Implemented</span></div></article>
+        <article><span class="step">02</span><div><h3>AI gateway foundation</h3><p>Opt-in OpenAI-compatible chat endpoint, server-only key, validation, request size limit and basic rate limit.</p><span class="tag tag-live">Implemented · configure provider to use</span></div></article>
+        <article><span class="step">03</span><div><h3>Remote runtime adapter</h3><p>Authenticated provider client, supported-app discovery, session creation and session closing are implemented. A compatible remote worker must be deployed separately.</p><span class="tag tag-live">Adapter implemented · worker external</span></div></article>
+        <article><span class="step">04</span><div><h3>MCP tool gateway</h3><p>Configured server discovery and confirmed tool calls are implemented; production authentication and auditing remain required.</p><span class="tag tag-live">Implemented · configure trusted server</span></div></article>
+      </div>
+    </section>
+    <footer><span>EVERYTHING- · Open foundations for a lighter computing experience</span><a href="https://github.com/galaxyuniversity900-oss/EVERYTHING-" target="_blank" rel="noreferrer">Source repository ↗</a></footer>
+  </main>
+</body>
+</html>

@@ -43,3 +43,12 @@ _ReSharper*/
 
 # Ignore Nuget packages folder
 packages/
+
+# Node.js and local runtime
+.env
+.env.*
+!.env.example
+node_modules/
+coverage/
+*.log
+.DS_Store
