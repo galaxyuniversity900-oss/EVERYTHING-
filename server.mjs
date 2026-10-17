@@ -10,6 +10,7 @@ import { assessCapabilities } from "./src/runtime/capabilities.mjs";
 import { createMcpClient } from "./src/mcp/client.mjs";
 import { createRemoteRuntime } from "./src/runtime/remote-provider.mjs";
 import { createAuthManager } from "./src/security/auth.mjs";
+import { cleanupRemoteSessions } from "./src/runtime/session-cleanup.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, "public");
@@ -344,8 +345,44 @@ server.listen(port, host, () => {
   console.log(`EVERYTHING- running at http://${host}:${port}`);
 });
 
+let shuttingDown = false;
 function shutdown() {
-  server.close(() => process.exit(0));
+  if (shuttingDown) return;
+  shuttingDown = true;
+  let serverClosed = false;
+  const serverClosedPromise = new Promise((resolve) => {
+    server.close(() => {
+      serverClosed = true;
+      resolve();
+    });
+  });
+  server.closeIdleConnections?.();
+
+  void (async () => {
+    let cleanupTask = Promise.resolve({ attempted: 0, closed: 0, failed: 0, timedOut: false });
+    try {
+      if (remoteConfigured && activeRemoteSessions.size > 0) {
+        cleanupTask = cleanupRemoteSessions({
+          sessionIds: activeRemoteSessions.keys(),
+          runtime: createRemoteRuntime(),
+          timeoutMs: 5000
+        });
+      }
+    } catch {
+      console.warn("Remote session shutdown cleanup could not reach the configured runtime.");
+    }
+
+    let timer;
+    await Promise.race([
+      Promise.all([serverClosedPromise, cleanupTask]).then(([, result]) => {
+        if (result.attempted) console.log("Remote session shutdown cleanup:", result.closed, "/", result.attempted, result.timedOut ? "before timeout." : "closed.");
+      }),
+      new Promise((resolve) => { timer = setTimeout(resolve, 6000); })
+    ]);
+    clearTimeout(timer);
+    if (!serverClosed) server.closeAllConnections?.();
+    process.exit(0);
+  })();
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
