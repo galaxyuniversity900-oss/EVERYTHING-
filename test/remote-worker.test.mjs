@@ -36,6 +36,9 @@ test("worker configuration requires a long token and valid public session base",
   assert.throws(() => createRemoteWorker({
     env: { WORKER_TOKEN: token, WORKER_PUBLIC_BASE_URL: "https://runtime.example.test", WORKER_SESSION_BASE_URL: "http://sessions.example.test", WORKER_APPS_JSON: "[]" }
   }), /WORKER_SESSION_BASE_URL/);
+  assert.throws(() => createRemoteWorker({
+    env: { WORKER_TOKEN: token, WORKER_PUBLIC_BASE_URL: "https://runtime.example.test", WORKER_SESSION_BASE_URL: "https://sessions.example.test", WORKER_APPS_JSON: JSON.stringify([{ ...apps[0], memory: "999999g" }]) }
+  }), /memory must be between 128m and 16g/);
 });
 
 test("worker requires bearer authentication for capabilities", async () => {
