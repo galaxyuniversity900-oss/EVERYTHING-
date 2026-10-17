@@ -87,7 +87,7 @@
     <section class="ai-section" aria-labelledby="ai-title">
       <div class="ai-heading"><p class="eyebrow">OPTIONAL AI GATEWAY</p><h2 id="ai-title">Ask a model.<br><span>Keep keys on the server.</span></h2><p>Enable this only after configuring a provider on the server. Messages are sent to that configured provider; do not submit sensitive data unless you understand its data policy.</p><div id="ai-status" class="ai-status" role="status">Checking AI provider configuration…</div></div>
       <div class="chat-panel">
-        <div class="ai-controls"><label for="ai-provider">Provider / model<select id="ai-provider"><option value="">Auto route</option></select></label><label for="ai-task">Task<select id="ai-task"><option value="chat">General chat</option><option value="coding">Coding</option><option value="reasoning">Reasoning</option><option value="fast">Fast response</option></select></label></div>
+        <div class="ai-controls"><label for="ai-provider">Provider / model<select id="ai-provider"><option value="">Auto route</option></select></label><label for="ai-task">Task<select id="ai-task"><option value="chat">General chat</option><option value="coding">Coding</option><option value="reasoning">Reasoning</option><option value="fast">Fast response</option></select></label><button id="ai-check-provider" class="ai-test-button" type="button" disabled>Test connection</button></div>
         <div id="ai-output" class="chat-output" aria-live="polite"><p class="chat-empty">AI is optional and disabled until explicitly configured.</p></div>
         <form id="ai-form" class="chat-form">
           <label class="sr-only" for="ai-input">Message for the AI model</label>
