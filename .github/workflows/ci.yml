@@ -107,6 +107,8 @@ jobs:
           test "$MCP_STATUS" = "503"
           REMOTE_STATUS=$(curl --silent --output /tmp/everything-remote-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/runtime/remote/sessions -H 'content-type: application/json' --data '{"appId":"editor","confirmed":true}')
           test "$REMOTE_STATUS" = "503"
+          ORIGIN_SCHEME_STATUS=$(curl --silent --output /tmp/everything-origin-scheme.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Origin: https://127.0.0.1:18787' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
+          test "$ORIGIN_SCHEME_STATUS" = "403"
           HOST_STATUS=$(curl --silent --output /tmp/everything-host-blocked.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Host: attacker.example' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
           test "$HOST_STATUS" = "403"
           AUTH_PASSWORD=ci-test-password COOKIE_SECURE=false PORT=18788 node server.mjs > /tmp/everything-auth-server.log 2>&1 &
