@@ -11,7 +11,7 @@ const MAX_API_RESPONSE_BYTES = 256 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const ALLOWED_CAPABILITIES = new Set(["CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "SETGID", "SETUID", "SETPCAP", "NET_BIND_SERVICE", "SYS_CHROOT", "MKNOD", "AUDIT_WRITE"]);
 
-function waitForTcpPort(port, { timeoutMs = 20_000 } = {}) {
+export function waitForTcpPort(port, { timeoutMs = 20_000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve) => {
     let settled = false;
