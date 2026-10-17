@@ -16,7 +16,7 @@ Sessions are ephemeral. Containers are removed on close, idle timeout, absolute 
 - DNS for `runtime.example.com` and a wildcard `*.sessions.example.com`.
 - A TLS certificate for the API hostname and a wildcard certificate for the session hostname.
 
-Pre-pull the approved images before launching the worker. This avoids image-pull timeouts during session creation.
+Pre-pull the approved images before launching the worker. This avoids image-pull timeouts during session creation. After Docker reports a published loopback port, the worker waits for that TCP port to accept connections before advertising the session as ready. `WORKER_STARTUP_TIMEOUT_SECONDS` controls this wait (5–60 seconds, default 20); a timeout triggers container rollback instead of returning a session that cannot yet accept connections.
 
 ### Optional NVIDIA GPU allocation
 
@@ -77,6 +77,7 @@ WORKER_SESSION_BASE_URL=https://sessions.example.com/
 WORKER_MAX_SESSIONS=2
 WORKER_SESSION_TTL_MINUTES=60
 WORKER_IDLE_TIMEOUT_MINUTES=15
+WORKER_STARTUP_TIMEOUT_SECONDS=20
 WORKER_APPS_JSON='[{"id":"linux-desktop","name":"Linux Desktop","description":"A remote Linux desktop; installed programs depend on this image.","image":"lscr.io/linuxserver/webtop:ubuntu-xfce","port":3000,"memory":"2g","shmSize":"512m","cpus":1,"pids":256,"capabilities":["CHOWN","DAC_OVERRIDE","FOWNER","FSETID","KILL","SETGID","SETUID","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","MKNOD","AUDIT_WRITE"],"env":{"PUID":"1000","PGID":"1000","TZ":"Etc/UTC","CUSTOM_USER":"desktop","PASSWORD":"replace-with-a-strong-container-password"}}]'
 ```
 
