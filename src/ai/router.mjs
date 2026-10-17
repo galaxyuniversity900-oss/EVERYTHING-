@@ -5,7 +5,7 @@ export async function routeAIChat({ env = process.env, messages, providerId, tas
   const registry = getAIProviderRegistry(env);
   const configured = registry.providers.filter((provider) => provider.configured);
   if (!configured.length) {
-    throw Object.assign(new Error(registry.configurationError || "No AI provider is configured. Enable AI and configure a valid endpoint/key."), {
+    throw Object.assign(new Error("No AI provider is configured. Enable AI and configure a valid endpoint/key."), {
       code: "provider_not_configured", status: 503
     });
   }
@@ -14,8 +14,8 @@ export async function routeAIChat({ env = process.env, messages, providerId, tas
     selected = configured.find((provider) => provider.id === providerId);
     if (!selected) throw Object.assign(new Error("The requested AI provider is not configured"), { code: "unknown_provider", status: 400 });
   } else {
-    selected = configured.find((provider) => provider.id === registry.defaultProviderId)
-      || configured.find((provider) => provider.capabilities.includes(task))
+    selected = (task !== "chat" ? configured.find((provider) => provider.capabilities.includes(task)) : null)
+      || configured.find((provider) => provider.id === registry.defaultProviderId)
       || configured[0];
   }
   const ordered = [selected];
