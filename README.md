@@ -9,18 +9,19 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Dependency-free Node.js HTTP server and responsive app directory.
 - Verified hosted-app links plus source-only entries where a hosted URL is not verified.
 - Searchable catalog and health API.
+- Browser-local notes, reusable prompts, and text snippets stored in IndexedDB, with search, edit/delete, JSON import/export, and a deliberate handoff into AI input. Local items are not synced or uploaded automatically.
 - Opt-in OpenAI-compatible chat endpoint. Compatible localhost inference servers can be used without a key; cloud providers require a server-side key.
 - Browser capability assessment for WASM and WebGPU.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
 - Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
-- Automated tests and GitHub Actions HTTP smoke tests.
+- Automated tests and GitHub Actions HTTP smoke tests, including a lightweight source-asset budget check.
 - Configuration, security, architecture, and remote provider API documentation.
 
 ## Not included yet
 
 - The remote compute worker that actually runs desktop applications. The adapter requires a compatible provider implementing [the remote runtime contract](docs/remote-runtime-api.md).
 - Bundled local LLM weights or an inference engine. Local models must already be served by a compatible endpoint.
-- Authentication, per-user credentials, durable storage, production-grade abuse controls, audit logs, or a production deployment.
+- Authentication, server-side multi-user storage, production-grade abuse controls, audit logs, or a production deployment. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
 
 ## Requirements and local run
@@ -126,7 +127,7 @@ This repository links to selected apps and source directories in [HeyPuter/every
 
 ## Contributing and security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [docs/architecture.md](docs/architecture.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [docs/architecture.md](docs/architecture.md), and [docs/low-resource-strategy.md](docs/low-resource-strategy.md).
 
 ## License
 

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "foundation/**"]
+    branches: ["main", "foundation/**", "phase-2/**"]
   pull_request:
   workflow_dispatch:
 
@@ -38,6 +38,8 @@ jobs:
           node --check public/mcp.js
           node --check public/remote.js
           node --check public/sw.js
+          node --check public/workspace.js
+          node --check public/workspace-core.js
       - name: Smoke-test HTTP APIs
         shell: bash
         run: |
@@ -56,6 +58,8 @@ jobs:
             const health = JSON.parse(fs.readFileSync("/tmp/everything-health.json", "utf8"));
             if (health.status !== "ok") process.exit(1);
           '
+          curl --fail --silent http://127.0.0.1:18787/workspace.css > /tmp/everything-workspace.css
+          test -s /tmp/everything-workspace.css
           curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;

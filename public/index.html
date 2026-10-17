@@ -10,10 +10,12 @@
   <title>EVERYTHING- | Lightweight Workspace</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/ai.css">
+  <link rel="stylesheet" href="/workspace.css">
   <link rel="stylesheet" href="/mcp.css">
   <link rel="stylesheet" href="/remote.css">
   <script type="module" src="/app.js"></script>
   <script type="module" src="/ai.js"></script>
+  <script type="module" src="/workspace.js"></script>
   <script type="module" src="/runtime.js"></script>
   <script type="module" src="/mcp.js"></script>
   <script type="module" src="/remote.js"></script>
@@ -39,6 +41,21 @@
       <nav class="filters" id="filters" aria-label="Filter applications"></nav>
       <div id="apps" class="app-grid" aria-live="polite"><p class="empty">Loading applications…</p></div>
       <p class="catalog-note">External apps open on their own websites. They are not hosted by this project. Availability, features, accounts and data policies are controlled by each provider.</p>
+    </section>
+
+
+    <section class="workspace-section" aria-labelledby="workspace-title">
+      <div class="workspace-head"><div><p class="eyebrow">LOCAL WORKSPACE · ON THIS DEVICE</p><h2 id="workspace-title">Keep your notes and prompts close.</h2><p>Saved items stay in this browser's IndexedDB. They are not uploaded automatically. Export a JSON backup if you need to move them to another browser or device.</p></div></div>
+      <div class="workspace-grid">
+        <form id="workspace-form" class="workspace-editor">
+          <label for="workspace-title-input">Title</label><input id="workspace-title-input" maxlength="120" placeholder="Name this note or prompt" required>
+          <label for="workspace-type">Item type</label><select id="workspace-type"><option value="note">Note</option><option value="prompt">AI prompt</option><option value="snippet">Text snippet</option></select>
+          <label for="workspace-content">Content</label><textarea id="workspace-content" maxlength="100000" placeholder="Write a note, reusable prompt, or snippet…" required></textarea>
+          <div class="workspace-buttons"><button id="workspace-save" class="workspace-primary" type="submit">Save locally</button><button id="workspace-new" class="workspace-secondary" type="button">New item</button><button id="workspace-export" class="workspace-secondary" type="button">Export JSON ↓</button><label class="workspace-import-label">Import JSON ↑<input id="workspace-import" type="file" accept=".json,application/json"></label></div>
+          <p id="workspace-status" class="workspace-status" role="status">Opening local workspace…</p>
+        </form>
+        <div class="workspace-library"><div class="workspace-library-head"><h3>Saved on this device</h3><span class="workspace-type">Local only</span></div><input id="workspace-search" class="workspace-search" type="search" placeholder="Search notes and prompts" aria-label="Search local workspace"><div id="workspace-items" class="workspace-items" aria-live="polite"><p class="workspace-empty">Loading local items…</p></div><p class="workspace-warning">Browser storage can be cleared by the user or the operating system. Export important work regularly.</p></div>
+      </div>
     </section>
 
     <section class="ai-section" aria-labelledby="ai-title">

@@ -34,8 +34,14 @@ function requestContext(task) {
     if (providerSelect.value) body.providerId = providerSelect.value;
     return body;
   };
-  while (messages.length > 1 && new TextEncoder().encode(JSON.stringify(request())).length > 36 * 1024) {
-    messages = messages.slice(1);
+  while (new TextEncoder().encode(JSON.stringify(request())).length > 36 * 1024) {
+    if (messages.length > 1) {
+      messages = messages.slice(1);
+      continue;
+    }
+    const only = messages[0];
+    if (!only || only.content.length < 2) break;
+    messages = [{ ...only, content: only.content.slice(0, Math.floor(only.content.length * 0.8)) }];
   }
   return request();
 }
