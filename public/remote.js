@@ -47,6 +47,12 @@ function renderSession(session) {
   card.className = "remote-session-card";
   const label = document.createElement("strong");
   label.textContent = `Session: ${session.appId}`;
+  const expiry = document.createElement("span");
+  expiry.className = "remote-session-expiry";
+  const expiresAt = session.expiresAt ? new Date(session.expiresAt) : null;
+  expiry.textContent = expiresAt && Number.isFinite(expiresAt.getTime())
+    ? `Expires ${expiresAt.toLocaleString()}`
+    : "Expiry managed by runtime";
   const link = document.createElement("a");
   link.href = session.url;
   link.target = "_blank";
@@ -73,7 +79,7 @@ function renderSession(session) {
       close.disabled = false;
     }
   });
-  card.append(label, link, close);
+  card.append(label, expiry, link, close);
   sessionsNode.prepend(card);
 }
 
