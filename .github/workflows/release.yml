@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*"
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "package.json"
+      - "server.mjs"
+      - "src/**"
+      - "public/**"
   workflow_dispatch:
     inputs:
       tag:
