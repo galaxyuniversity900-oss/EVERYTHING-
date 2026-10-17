@@ -58,8 +58,16 @@ export function createRemoteRuntime({ env = process.env, fetchImpl = fetch, time
     if (!Array.isArray(result.apps)) {
       throw Object.assign(new Error("Remote runtime capabilities must include an apps array"), { code: "invalid_remote_capabilities", status: 502 });
     }
+    const rawCapacity = result.capacity && typeof result.capacity === "object" ? result.capacity : null;
+    const capacity = rawCapacity ? {
+      activeSessions: Number.isInteger(rawCapacity.activeSessions) ? Math.max(0, Math.min(1000, rawCapacity.activeSessions)) : null,
+      pendingSessions: Number.isInteger(rawCapacity.pendingSessions) ? Math.max(0, Math.min(1000, rawCapacity.pendingSessions)) : null,
+      maxSessions: Number.isInteger(rawCapacity.maxSessions) ? Math.max(0, Math.min(1000, rawCapacity.maxSessions)) : null,
+      availableSlots: Number.isInteger(rawCapacity.availableSlots) ? Math.max(0, Math.min(1000, rawCapacity.availableSlots)) : null
+    } : null;
     return {
       provider: result.provider || "Configured remote runtime",
+      capacity,
       apps: result.apps.filter((app) => app && typeof app.id === "string" && /^[a-zA-Z0-9_.-]{1,80}$/.test(app.id)).map((app) => ({
         id: app.id,
         name: String(app.name || app.id).slice(0, 120),
