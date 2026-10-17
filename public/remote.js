@@ -116,7 +116,10 @@ async function loadRemoteApps() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Remote runtime discovery failed.");
     renderApps(data.apps || []);
-    statusNode.textContent = `Connected to ${data.provider}. ${(data.apps || []).length} launchable apps advertised.`;
+    const capacityText = data.capacity && Number.isFinite(data.capacity.availableSlots)
+      ? ` ${data.capacity.activeSessions ?? "?"}/${data.capacity.maxSessions ?? "?"} sessions in use; ${data.capacity.availableSlots} slots available.`
+      : "";
+    statusNode.textContent = `Connected to ${data.provider}. ${(data.apps || []).length} launchable apps advertised.${capacityText}`;
   } catch (error) {
     statusNode.textContent = error.message;
   } finally {
