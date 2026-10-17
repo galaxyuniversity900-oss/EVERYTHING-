@@ -140,3 +140,29 @@ jobs:
           curl --fail --silent -b /tmp/everything-cookies.txt -X POST http://127.0.0.1:18788/api/auth/logout > /tmp/everything-logout.json
           LOGGED_OUT_API=$(curl --silent --output /tmp/everything-logged-out.json --write-out '%{http_code}' http://127.0.0.1:18788/api/apps)
           test "$LOGGED_OUT_API" = "401"
+          node --input-type=module -e '
+            import { createServer } from "node:http";
+            const server = createServer((req, res) => {
+              res.setHeader("content-type", "application/json");
+              if (req.url !== "/v1/models" || req.headers.authorization !== "Bearer ci-provider-secret") {
+                res.writeHead(401); res.end(JSON.stringify({ error: "unauthorized" })); return;
+              }
+              res.end(JSON.stringify({ data: [{ id: "ci-model" }] }));
+            });
+            server.listen(18789, "127.0.0.1");
+          ' > /tmp/everything-model-server.log 2>&1 &
+          MODEL_PID=$!
+          AI_API_ENABLED=true OPENAI_BASE_URL=http://127.0.0.1:18789/v1 OPENAI_MODEL=ci-model OPENAI_API_KEY=ci-provider-secret PORT=18790 node server.mjs > /tmp/everything-ai-check-server.log 2>&1 &
+          AI_PID=$!
+          trap 'kill "$SERVER_PID" "$AUTH_PID" "$MODEL_PID" "$AI_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18790/api/ai/providers > /tmp/everything-configured-providers.json; then break; fi
+            sleep 1
+          done
+          curl --fail --silent -X POST http://127.0.0.1:18790/api/ai/providers/check -H 'content-type: application/json' --data '{"providerId":"default"}' > /tmp/everything-provider-check.json
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const result = JSON.parse(fs.readFileSync("/tmp/everything-provider-check.json", "utf8"));
+            if (result.ok !== true || result.modelListed !== true || result.providerId !== "default" || result.model !== "ci-model") process.exit(1);
+            if (JSON.stringify(result).includes("ci-provider-secret")) process.exit(1);
+          '
