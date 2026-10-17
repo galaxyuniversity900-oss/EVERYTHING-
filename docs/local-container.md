@@ -36,7 +36,7 @@ docker compose up --build -d
 - `.env` is excluded from the image build context. Keep provider keys only in the local environment file and never commit it.
 - The port is bound to `127.0.0.1` on the host.
 
-Do not change the port mapping to `0.0.0.0:8787:8787` or deploy this container publicly. The current application does not provide production multi-user authentication or production-grade authorization. For cloud deployment, first implement and review authentication, TLS, per-user secrets, durable abuse controls, monitoring, and an isolated remote worker.
+Do not change the port mapping to `0.0.0.0:8787:8787` or deploy this container publicly. The application has an optional shared-password access gate, but it does not provide multi-user identity, roles, per-user secrets, or production-grade authorization. Cloud deployment still requires a reviewed HTTPS reverse proxy, trusted-host configuration, durable abuse controls, monitoring, and an isolated remote worker. Follow the access-gate requirements in `README.md`; keep the Node port inaccessible directly from the internet.
 
 ## AI provider caveat
 
