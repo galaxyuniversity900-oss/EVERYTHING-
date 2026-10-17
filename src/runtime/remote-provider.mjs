@@ -66,6 +66,7 @@ export function createRemoteRuntime({ env = process.env, fetchImpl = fetch, time
         description: String(app.description || "").slice(0, 500),
         resources: app.resources && typeof app.resources === "object" ? {
           memory: typeof app.resources.memory === "string" ? app.resources.memory.slice(0, 16) : null,
+          shmSize: typeof app.resources.shmSize === "string" ? app.resources.shmSize.slice(0, 16) : null,
           cpus: Number.isFinite(app.resources.cpus) ? Math.max(0, Math.min(4, app.resources.cpus)) : null,
           pids: Number.isInteger(app.resources.pids) ? Math.max(0, Math.min(512, app.resources.pids)) : null,
           gpus: Number.isInteger(app.resources.gpus) ? Math.max(0, Math.min(4, app.resources.gpus)) : 0
