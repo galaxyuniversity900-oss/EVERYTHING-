@@ -42,14 +42,14 @@ async function readSseResponse(response, id) {
         const event = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + delimiter.length);
         const parsed = parseEvent(event);
-        if (parsed && (parsed.id === id || parsed.result || parsed.error)) {
+        if (parsed && parsed.id === id) {
           await reader.cancel();
           return parsed;
         }
       }
     }
     const tail = parseEvent(buffer);
-    return tail && (tail.id === id || tail.result || tail.error) ? tail : null;
+    return tail && tail.id === id ? tail : null;
   } finally {
     reader.releaseLock();
   }
@@ -63,7 +63,14 @@ async function readRpcResponse(response, id) {
     throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
   }
   if (!text.trim()) return null;
-  try { return JSON.parse(text); } catch {
+  try {
+    const parsed = JSON.parse(text);
+    if (id !== undefined && parsed?.id !== id) {
+      throw Object.assign(new Error("MCP server returned a response with an unexpected request id"), { code: "mcp_response_id_mismatch", status: 502 });
+    }
+    return parsed;
+  } catch (error) {
+    if (error.code === "mcp_response_id_mismatch") throw error;
     throw Object.assign(new Error("MCP server returned an unreadable response"), { code: "invalid_mcp_response", status: 502 });
   }
 }
