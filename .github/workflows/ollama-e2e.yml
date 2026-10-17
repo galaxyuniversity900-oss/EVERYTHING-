@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:8787/api/health > /tmp/everything-health.json; then
               break
             fi
@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           ready=0
-          for attempt in $(seq 1 180); do
+          for _ in $(seq 1 180); do
             if docker compose exec -T ollama ollama list | grep -Fq 'qwen2.5:0.5b'; then
               ready=1
               break
