@@ -1,4 +1,5 @@
 const MAX_TIMEOUT_MS = 90_000;
+const MAX_RESPONSE_BYTES = 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 export async function createChatCompletion({
@@ -40,9 +41,17 @@ export async function createChatCompletion({
       body: JSON.stringify({ model, messages: safeMessages, stream: false }),
       signal: controller.signal, redirect: "error"
     });
-    const payload = await response.json().catch(() => ({}));
+    const responseText = await response.text();
+    if (Buffer.byteLength(responseText, "utf8") > MAX_RESPONSE_BYTES) {
+      throw Object.assign(new Error("AI provider response exceeded the size limit"), { code: "provider_response_too_large", status: 502 });
+    }
+    let payload = {};
+    try { payload = responseText ? JSON.parse(responseText) : {}; } catch { /* Handle non-JSON provider errors below. */ }
     if (!response.ok) {
       throw Object.assign(new Error(payload?.error?.message || `AI provider returned HTTP ${response.status}`), { code: "provider_request_failed", status: 502 });
+    }
+    if (!responseText || !Object.keys(payload).length) {
+      throw Object.assign(new Error("AI provider returned invalid JSON"), { code: "invalid_provider_response", status: 502 });
     }
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string") {
