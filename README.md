@@ -21,7 +21,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 
 - The remote compute worker that actually runs desktop applications. The adapter requires a compatible provider implementing [the remote runtime contract](docs/remote-runtime-api.md).
 - Bundled local LLM weights or an inference engine. Local models must already be served by a compatible endpoint.
-- Authentication, server-side multi-user storage, production-grade abuse controls, audit logs, or a production deployment. Local notes are browser-specific and are not synced.
+- Multi-user accounts/roles, server-side user storage, production-grade abuse controls, audit logs, or a managed production deployment. The optional access gate uses one shared password and in-memory sessions, not individual user accounts. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
 
 ## Requirements and local run
@@ -35,6 +35,21 @@ npm start
 ```
 
 Open `http://127.0.0.1:8787`. The server binds to localhost by default. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place.
+
+## Optional access gate
+
+For local use, no password is required; the server still binds to loopback by default. To require a shared password, set this in `.env`:
+
+```env
+AUTH_PASSWORD=use-a-long-random-password
+COOKIE_SECURE=false
+```
+
+Restart the server and sign in through the overlay. Sessions use HttpOnly, SameSite=Strict cookies and expire after 12 hours; sessions are held in memory and are cleared when the server restarts.
+
+For a trusted public hostname behind an HTTPS reverse proxy, also set `COOKIE_SECURE=true` and `TRUSTED_HOSTS=app.example.com`. The proxy must overwrite `X-Forwarded-Proto` with `https`. Public-host requests are rejected unless a password, Secure cookies, and an explicit trusted hostname are configured. Keep the Node server inaccessible directly from the internet.
+
+This is a **single shared-password gate**, not multi-user authentication, role-based access control, or a substitute for a complete production security review.
 
 ## Optional AI and model routing
 
@@ -88,7 +103,7 @@ The service must implement `GET /v1/capabilities`, `POST /v1/sessions`, and `DEL
 
 ## API
 
-- `GET /api/health` — service status.
+- `GET /api/health` — service status.\n- `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout` — optional shared-password access gate.
 - `GET /api/apps?q=spreadsheet&category=Office` — catalog.
 - `GET /api/ai/providers` — configured provider list and routing defaults, without secrets.
 - `POST /api/ai/chat` — non-streaming OpenAI-compatible chat with optional `providerId` and `task` fields.
@@ -110,7 +125,7 @@ These endpoints are not a public multi-user service. Do not expose them publicly
 5. Advanced AI modalities (image/audio/video), provider-specific streaming, and task capability benchmarking.
 6. Local inference and low-resource device benchmarking.
 7. User identity, isolated persistent storage, import/export and recovery.
-8. Production hardening: authentication, durable rate limits, monitoring, accessibility, security review, and deployment automation.
+8. Production hardening: multi-user identity/roles, durable rate limits, audit logs, monitoring, accessibility, security review, and deployment automation.
 
 ## Design principles
 
