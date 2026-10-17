@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — Verified application catalog
+
+- Expanded the catalog to 50 upstream app entries across office, collaboration, creative, engineering, productivity, finance, business, developer, and games categories.
+- Distinguished published demo links from source-only projects using upstream README link-status notes.
+- Added registry tests for catalog breadth, source attribution, and truthful hosted status.
+
+
 All notable changes to EVERYTHING- are recorded here.
 
 ## 0.4.0 — Local workspace
