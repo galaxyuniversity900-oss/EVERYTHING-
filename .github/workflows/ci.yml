@@ -102,6 +102,8 @@ jobs:
             for await (const chunk of process.stdin) input += chunk;
             if (JSON.parse(input).configured !== false) process.exit(1);
           '
+          AI_CHECK_STATUS=$(curl --silent --output /tmp/everything-ai-check-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/ai/providers/check -H 'content-type: application/json' --data '{"providerId":"default"}')
+          test "$AI_CHECK_STATUS" = "503"
           AI_STATUS=$(curl --silent --output /tmp/everything-ai-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/ai/chat -H 'content-type: application/json' --data '{"messages":[{"role":"user","content":"test"}]}')
           test "$AI_STATUS" = "503"
           MCP_STATUS=$(curl --silent --output /tmp/everything-mcp-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
