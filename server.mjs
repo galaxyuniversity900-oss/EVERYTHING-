@@ -255,8 +255,18 @@ const server = createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       if (!body || typeof body !== "object") throw Object.assign(new Error("Request must be a JSON object"), { status: 400, code: "invalid_request" });
-      const result = await routeAIChat({ messages: body.messages, providerId: body.providerId, task: body.task });
-      return sendJson(res, 200, result);
+      const controller = new AbortController();
+      const abortRequest = () => controller.abort();
+      const abortDisconnectedResponse = () => { if (!res.writableEnded) controller.abort(); };
+      req.once("aborted", abortRequest);
+      res.once("close", abortDisconnectedResponse);
+      try {
+        const result = await routeAIChat({ messages: body.messages, providerId: body.providerId, task: body.task, signal: controller.signal });
+        return sendJson(res, 200, result);
+      } finally {
+        req.off("aborted", abortRequest);
+        res.off("close", abortDisconnectedResponse);
+      }
     } catch (error) {
       return routeError(res, error, "ai_request_failed");
     }
