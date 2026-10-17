@@ -14,6 +14,9 @@ export async function createChatCompletion({
   try { base = new URL(baseUrl); }
   catch { throw Object.assign(new Error("AI base URL is invalid"), { code: "invalid_provider_url", status: 500 }); }
   const local = LOOPBACK_HOSTS.has(base.hostname);
+  if (base.username || base.password || base.hash || base.search) {
+    throw Object.assign(new Error("AI provider URL cannot contain credentials, query parameters, or fragments"), { code: "unsafe_provider_url", status: 500 });
+  }
   if (base.protocol !== "https:" && !(local && base.protocol === "http:")) {
     throw Object.assign(new Error("AI provider URL must use HTTPS outside localhost"), { code: "insecure_provider_url", status: 500 });
   }
