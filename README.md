@@ -103,7 +103,8 @@ The service must implement `GET /v1/capabilities`, `POST /v1/sessions`, and `DEL
 
 ## API
 
-- `GET /api/health` — service status.\n- `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout` — optional shared-password access gate.
+- `GET /api/health` — service status.
+- `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout` — optional shared-password access gate.
 - `GET /api/apps?q=spreadsheet&category=Office` — catalog.
 - `GET /api/ai/providers` — configured provider list and routing defaults, without secrets.
 - `POST /api/ai/chat` — non-streaming OpenAI-compatible chat with optional `providerId` and `task` fields.
