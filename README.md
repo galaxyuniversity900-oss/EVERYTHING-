@@ -20,7 +20,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 
 - The remote compute worker that actually runs desktop applications. The adapter requires a compatible provider implementing [the remote runtime contract](docs/remote-runtime-api.md).
 - Bundled local LLM weights or an inference engine. Local models must already be served by a compatible endpoint.
-- Authentication, per-user credentials, durable storage, production-grade abuse controls, audit logs, or a production deployment.
+- Authentication, server-side multi-user storage, production-grade abuse controls, audit logs, or a production deployment. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
 
 ## Requirements and local run
