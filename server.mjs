@@ -349,22 +349,39 @@ let shuttingDown = false;
 function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
-  server.close();
+  let serverClosed = false;
+  const serverClosedPromise = new Promise((resolve) => {
+    server.close(() => {
+      serverClosed = true;
+      resolve();
+    });
+  });
+  server.closeIdleConnections?.();
+
   void (async () => {
+    let cleanupTask = Promise.resolve({ attempted: 0, closed: 0, failed: 0, timedOut: false });
     try {
       if (remoteConfigured && activeRemoteSessions.size > 0) {
-        const result = await cleanupRemoteSessions({
+        cleanupTask = cleanupRemoteSessions({
           sessionIds: activeRemoteSessions.keys(),
           runtime: createRemoteRuntime(),
           timeoutMs: 5000
         });
-        console.log("Remote session shutdown cleanup:", result.closed, "/", result.attempted, result.timedOut ? "before timeout." : "closed.");
       }
     } catch {
       console.warn("Remote session shutdown cleanup could not reach the configured runtime.");
-    } finally {
-      process.exit(0);
     }
+
+    let timer;
+    await Promise.race([
+      Promise.all([serverClosedPromise, cleanupTask]).then(([, result]) => {
+        if (result.attempted) console.log("Remote session shutdown cleanup:", result.closed, "/", result.attempted, result.timedOut ? "before timeout." : "closed.");
+      }),
+      new Promise((resolve) => { timer = setTimeout(resolve, 6000); })
+    ]);
+    clearTimeout(timer);
+    if (!serverClosed) server.closeAllConnections?.();
+    process.exit(0);
   })();
 }
 process.on("SIGINT", shutdown);
