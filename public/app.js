@@ -24,10 +24,12 @@ function renderApps(apps) {
   }
   appGrid.innerHTML = apps.map((app) => {
     const initial = escapeHtml(app.name.slice(0, 1).toUpperCase());
+    const primaryLabel = app.hosted ? "Open app ↗" : "View source ↗";
+    const sourceLink = app.hosted ? `<a href="${escapeHtml(app.source)}" target="_blank" rel="noopener noreferrer">Source</a>` : "";
     return `<article class="app-card">
       <div class="app-top"><span class="app-icon" aria-hidden="true">${initial}</span><span class="app-category">${escapeHtml(app.category)}</span></div>
       <h3>${escapeHtml(app.name)}</h3><p>${escapeHtml(app.description)}</p>
-      <div class="app-actions"><a href="${escapeHtml(app.url)}" target="_blank" rel="noopener noreferrer">Open app ↗</a><a href="${escapeHtml(app.source)}" target="_blank" rel="noopener noreferrer">Source</a></div>
+      <div class="app-actions"><a href="${escapeHtml(app.url)}" target="_blank" rel="noopener noreferrer">${primaryLabel}</a>${sourceLink}</div>
     </article>`;
   }).join("");
 }
