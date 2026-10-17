@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getApps, apps } from "./src/registry.mjs";
-import { createChatCompletion } from "./src/ai/openai-compatible.mjs";
+import { routeAIChat } from "./src/ai/router.mjs";
+import { publicAIProviderRegistry } from "./src/ai/provider-registry.mjs";
 import { assessCapabilities } from "./src/runtime/capabilities.mjs";
 import { createMcpClient } from "./src/mcp/client.mjs";
 import { createRemoteRuntime } from "./src/runtime/remote-provider.mjs";
@@ -12,11 +13,8 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, "public");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number.parseInt(process.env.PORT || "8787", 10);
-const aiEnabled = process.env.AI_API_ENABLED === "true";
-const aiBaseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const localAiHost = (() => { try { return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(new URL(aiBaseUrl).hostname); } catch { return false; } })();
-const aiConfigured = aiEnabled && (Boolean(process.env.OPENAI_API_KEY) || localAiHost);
-const aiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const aiStatus = publicAIProviderRegistry();
+const aiConfigured = aiStatus.enabled;
 const mcpConfigured = Boolean(process.env.MCP_SERVER_URL);
 const remoteConfigured = Boolean(process.env.REMOTE_RUNTIME_URL);
 const remoteRateBuckets = new Map();
@@ -110,9 +108,8 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/ai/providers") {
       return sendJson(res, 200, {
-        providers: [{ id: "openai-compatible", name: "OpenAI-compatible API (including compatible local endpoints)", configured: aiConfigured, model: aiConfigured ? aiModel : null }],
-        enabled: aiConfigured,
-        setup: aiConfigured ? null : "Set AI_API_ENABLED=true and configure a provider on the server. Never put keys in browser code."
+        ...aiStatus,
+        setup: aiConfigured ? null : "Set AI_API_ENABLED=true and configure at least one provider on the server. Never put keys in browser code."
       });
     }
     if (url.pathname === "/api/runtime/capabilities") {
@@ -187,7 +184,7 @@ const server = createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       if (!body || typeof body !== "object") throw Object.assign(new Error("Request must be a JSON object"), { status: 400, code: "invalid_request" });
-      const result = await createChatCompletion({ apiKey: process.env.OPENAI_API_KEY, baseUrl: aiBaseUrl, model: aiModel, messages: body.messages });
+      const result = await routeAIChat({ messages: body.messages, providerId: body.providerId, task: body.task });
       return sendJson(res, 200, result);
     } catch (error) {
       return routeError(res, error, "ai_request_failed");
