@@ -63,7 +63,13 @@ export function createRemoteRuntime({ env = process.env, fetchImpl = fetch, time
       apps: result.apps.filter((app) => app && typeof app.id === "string" && /^[a-zA-Z0-9_.-]{1,80}$/.test(app.id)).map((app) => ({
         id: app.id,
         name: String(app.name || app.id).slice(0, 120),
-        description: String(app.description || "").slice(0, 500)
+        description: String(app.description || "").slice(0, 500),
+        resources: app.resources && typeof app.resources === "object" ? {
+          memory: typeof app.resources.memory === "string" ? app.resources.memory.slice(0, 16) : null,
+          cpus: Number.isFinite(app.resources.cpus) ? Math.max(0, Math.min(4, app.resources.cpus)) : null,
+          pids: Number.isInteger(app.resources.pids) ? Math.max(0, Math.min(512, app.resources.pids)) : null,
+          gpus: Number.isInteger(app.resources.gpus) ? Math.max(0, Math.min(4, app.resources.gpus)) : 0
+        } : null
       }))
     };
   }
