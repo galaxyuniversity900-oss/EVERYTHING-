@@ -28,10 +28,14 @@ test("multiple providers resolve key references from the server environment", ()
   assert.equal(publicView.providers.length, 2);
 });
 
-test("invalid provider JSON is reported", () => {
-  const invalid = getAIProviderRegistry({ AI_API_ENABLED: "true", AI_PROVIDERS_JSON: "not-json" });
+test("invalid provider JSON is reported without exposing the raw parse message publicly", () => {
+  const env = { AI_API_ENABLED: "true", AI_PROVIDERS_JSON: '{"token":"private-value", broken}' };
+  const invalid = getAIProviderRegistry(env);
+  const publicView = publicAIProviderRegistry(env);
   assert.equal(invalid.providers.length, 0);
   assert.ok(invalid.configurationError);
+  assert.equal(JSON.stringify(publicView).includes("private-value"), false);
+  assert.equal(publicView.configurationError, "AI_PROVIDERS_JSON is invalid; review server configuration.");
 });
 
 test("AI stays disabled unless explicitly enabled", () => {
