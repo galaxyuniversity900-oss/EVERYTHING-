@@ -44,7 +44,11 @@ function readWorkerConfig(env) {
     if (typeof app.image !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/:@-]{0,255}$/.test(app.image)) throw new Error(`App ${app.id} has an invalid container image reference`);
     const port = Number(app.port);
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`App ${app.id} has an invalid container port`);
-    const memory = typeof app.memory === "string" && /^\d+(m|g)$/.test(app.memory) ? app.memory : "2g";
+    const memoryInput = typeof app.memory === "string" ? app.memory : "2g";
+    const memoryMatch = /^(\d+)(m|g)$/.exec(memoryInput);
+    const memoryMiB = memoryMatch ? Number(memoryMatch[1]) * (memoryMatch[2] === "g" ? 1024 : 1) : 0;
+    if (!Number.isSafeInteger(memoryMiB) || memoryMiB < 128 || memoryMiB > 16 * 1024) throw new Error(`App ${app.id} memory must be between 128m and 16g`);
+    const memory = memoryInput;
     const cpus = Number.isFinite(Number(app.cpus)) ? Math.max(0.25, Math.min(4, Number(app.cpus))) : 1;
     const pids = Number.isInteger(Number(app.pids)) ? Math.max(64, Math.min(512, Number(app.pids))) : 256;
     const envEntries = Object.entries(app.env || {});
