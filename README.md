@@ -103,10 +103,10 @@ These endpoints are not a public multi-user service. Do not expose them publicly
 ## Roadmap
 
 1. Workspace core — implemented.
-2. AI gateway foundation — implemented for one OpenAI-compatible non-streaming API shape.
+2. AI gateway — implemented for OpenAI-compatible, Anthropic Messages, and Gemini text-chat protocols, with task-aware routing and optional fallback.
 3. MCP discovery and confirmed calls — implemented for one configured Streamable HTTP server; protocol compatibility and auditing need broader testing.
 4. Remote runtime adapter — implemented; compatible worker deployment is external.
-5. Multi-provider routing and AI task capability manifests — foundation implemented; provider-specific advanced modalities still need adapters and tests.
+5. Advanced AI modalities (image/audio/video), provider-specific streaming, and task capability benchmarking.
 6. Local inference and low-resource device benchmarking.
 7. User identity, isolated persistent storage, import/export and recovery.
 8. Production hardening: authentication, durable rate limits, monitoring, accessibility, security review, and deployment automation.
