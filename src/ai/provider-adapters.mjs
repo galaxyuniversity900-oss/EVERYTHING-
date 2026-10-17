@@ -3,6 +3,7 @@ import { createChatCompletion } from "./openai-compatible.mjs";
 const MAX_TIMEOUT_MS = 90_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const isInternalServiceHost = (hostname) => /^[a-zA-Z][a-zA-Z0-9-]{0,62}$/.test(hostname) && !LOOPBACK_HOSTS.has(hostname);
 
 function nativeProviderBase(baseUrl) {
   let base;
@@ -116,10 +117,11 @@ export async function checkProviderConnection({ provider, fetchImpl = fetch, tim
     try { base = new URL(provider.baseUrl); }
     catch { throw Object.assign(new Error("AI provider URL is invalid"), { code: "invalid_provider_url", status: 500 }); }
     const local = LOOPBACK_HOSTS.has(base.hostname) && base.protocol === "http:";
-    if ((!local && base.protocol !== "https:") || base.username || base.password || base.hash || base.search) {
+    const internalHttp = provider.allowInternalHttp === true && base.protocol === "http:" && isInternalServiceHost(base.hostname);
+    if ((!local && !internalHttp && base.protocol !== "https:") || base.username || base.password || base.hash || base.search) {
       throw Object.assign(new Error("AI provider URL is unsafe"), { code: "unsafe_provider_url", status: 500 });
     }
-    if (!local && !provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
+    if (!local && !internalHttp && !provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
     base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
   } else {
     throw Object.assign(new Error("Unsupported AI provider protocol"), { code: "unsupported_provider_protocol", status: 400 });
@@ -181,7 +183,7 @@ export async function createProviderCompletion({ provider, messages, fetchImpl =
   }
   const protocol = provider.protocol || "openai-compatible";
   if (protocol === "openai-compatible") {
-    return createChatCompletion({ apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, messages, fetchImpl, timeoutMs });
+    return createChatCompletion({ apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, messages, fetchImpl, timeoutMs, allowInternalHttp: provider.allowInternalHttp === true });
   }
   if (protocol === "anthropic") return anthropicCompletion({ provider, messages, fetchImpl, timeoutMs });
   if (protocol === "gemini") return geminiCompletion({ provider, messages, fetchImpl, timeoutMs });
