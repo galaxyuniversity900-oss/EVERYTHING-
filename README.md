@@ -30,7 +30,7 @@ The catalog is curated from the upstream [HeyPuter/everything repository](https:
 
 ## Not included yet
 
-- A deployed remote compute service. This repository now includes an optional Docker-backed reference worker in [remote-worker/README.md](remote-worker/README.md), but it must be deployed on a dedicated Docker host with HTTPS/wildcard DNS and trusted images before it can run sessions.
+- No hosted remote compute service is operated by this repository. The optional Docker-backed worker can now be built and run with Compose on a dedicated Linux server; follow [the remote worker setup](remote-worker/README.md) and configure HTTPS plus wildcard session DNS before remote sessions can work.
 - Bundled local LLM weights or an inference engine. Local models must already be served by a compatible endpoint.
 - Multi-user accounts/roles, server-side user storage, production-grade abuse controls, audit logs, or a managed production deployment. The optional access gate uses one shared password and in-memory sessions, not individual user accounts. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
@@ -49,7 +49,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:8787`. The server binds to localhost by default. See [the Android/Termux guide](docs/termux-android.md) for running the workspace on a phone. Do not expose it publicly until you configure the shared-password gate, HTTPS reverse proxy, durable rate limiting, monitoring, and a deployment security review. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
+Open `http://127.0.0.1:8787`. The server binds to localhost by default. See [the Android/Termux guide](docs/termux-android.md) for running the workspace on a phone. Do not expose it publicly until you configure the shared-password gate, HTTPS reverse proxy, durable rate limiting, monitoring, and a deployment security review. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md). The optional, high-privilege Docker session worker has a separate Linux-only Compose setup in [remote-worker/README.md](remote-worker/README.md).
 
 ## Optional access gate
 
