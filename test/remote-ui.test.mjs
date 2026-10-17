@@ -9,3 +9,10 @@ test("remote session cards display expiry metadata when provided", () => {
   assert.match(script, /toLocaleString\(\)/);
   assert.match(script, /Expiry managed by runtime/);
 });
+
+test("remote app launch is disabled when advertised capacity is exhausted", () => {
+  assert.match(script, /function renderApps\(apps, capacity = null\)/);
+  assert.match(script, /capacityFull = Number\.isFinite\(capacity\?\.availableSlots\) && capacity\.availableSlots <= 0/);
+  assert.match(script, /launch\.disabled = capacityFull/);
+  assert.match(script, /renderApps\(data\.apps \|\| \[\], data\.capacity \|\| null\)/);
+});
