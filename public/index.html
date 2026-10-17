@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#171914">
-  <meta name="description" content="A lightweight workspace for browser-based applications and future adaptive AI runtimes.">
+  <meta name="description" content="A lightweight workspace for browser-based apps, with optional server-side AI integration.">
   <title>EVERYTHING- | Lightweight Workspace</title>
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
+  <script type="module" src="/ai.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -18,8 +19,8 @@
     <section class="hero">
       <p class="eyebrow">ONE WORKSPACE · LIGHTWEIGHT BY DESIGN</p>
       <h1>Your tools.<br><span>Without the heavy install.</span></h1>
-      <p class="hero-copy">Discover browser-based applications from one place. The workspace stays light; demanding workloads will be routed to a suitable local or remote runtime as those capabilities are implemented.</p>
-      <div class="hero-meta"><span id="app-count">Loading catalog…</span><span class="meta-divider">/</span><span>Runs as a small Node.js service</span></div>
+      <p class="hero-copy">Discover browser-based applications from one place. Heavy workloads need a compatible browser runtime or a configured remote service; this workspace does not pretend every desktop program can run on every phone.</p>
+      <div class="hero-meta"><span id="app-count">Loading catalog…</span><span class="meta-divider">/</span><span>Small Node.js service · no runtime dependencies</span></div>
     </section>
 
     <section class="catalog" aria-labelledby="catalog-title">
@@ -32,12 +33,30 @@
       <p class="catalog-note">External apps open on their own websites. They are not hosted by this project. Availability, features, accounts and data policies are controlled by each provider.</p>
     </section>
 
+    <section class="ai-section" aria-labelledby="ai-title">
+      <div class="ai-heading"><p class="eyebrow">OPTIONAL AI GATEWAY</p><h2 id="ai-title">Ask a model.<br><span>Keep keys on the server.</span></h2><p>Enable this only after configuring a provider on the server. Messages are sent to that configured provider; do not submit sensitive data unless you understand its data policy.</p><div id="ai-status" class="ai-status" role="status">Checking AI provider configuration…</div></div>
+      <div class="chat-panel">
+        <div id="ai-output" class="chat-output" aria-live="polite"><p class="chat-empty">AI is optional and disabled until explicitly configured.</p></div>
+        <form id="ai-form" class="chat-form">
+          <label class="sr-only" for="ai-input">Message for the AI model</label>
+          <textarea id="ai-input" rows="3" maxlength="20000" placeholder="Ask a question…" required></textarea>
+          <button id="ai-send" type="submit">Send ↗</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="runtime-section" aria-labelledby="runtime-title">
+      <div><p class="eyebrow">DEVICE CAPABILITY CHECK</p><h2 id="runtime-title">Choose the right execution path.</h2><p class="runtime-copy">This checks browser features only. It does not benchmark the device or prove that a specific app/model will fit in memory.</p></div>
+      <div class="runtime-result"><span id="runtime-mode">Checking browser…</span><p id="runtime-details">Reading available browser capabilities.</p></div>
+    </section>
+
     <section class="roadmap">
       <div><p class="eyebrow">ENGINEERING ROADMAP</p><h2>Light interface.<br>Real execution.</h2></div>
       <div class="roadmap-items">
-        <article><span class="step">01</span><div><h3>Workspace core</h3><p>App registry, searchable catalog, health endpoint and lightweight server.</p><span class="tag tag-live">Implemented in this branch</span></div></article>
-        <article><span class="step">02</span><div><h3>Adaptive runtime</h3><p>Explicit capability checks for browser, WASM, WebGPU and remote execution.</p><span class="tag">Planned · not yet implemented</span></div></article>
-        <article><span class="step">03</span><div><h3>Unified AI gateway</h3><p>Provider adapters, local-model options, secure secrets and routing by task, latency and cost.</p><span class="tag">Planned · not yet implemented</span></div></article>
+        <article><span class="step">01</span><div><h3>Workspace core</h3><p>App registry, responsive directory, catalog API and automated CI.</p><span class="tag tag-live">Implemented</span></div></article>
+        <article><span class="step">02</span><div><h3>AI gateway foundation</h3><p>Opt-in OpenAI-compatible chat endpoint, server-only key, validation, request size limit and basic rate limit.</p><span class="tag tag-live">Implemented · configure provider to use</span></div></article>
+        <article><span class="step">03</span><div><h3>Adaptive execution</h3><p>Capability assessment exists; actual remote app streaming and workload execution adapters are still required.</p><span class="tag">In progress</span></div></article>
+        <article><span class="step">04</span><div><h3>Local models, MCP and storage</h3><p>Local inference, secure tool connections, accounts and persistent user workspaces require separate tested implementations.</p><span class="tag">Not implemented yet</span></div></article>
       </div>
     </section>
     <footer><span>EVERYTHING- · Open foundations for a lighter computing experience</span><a href="https://github.com/galaxyuniversity900-oss/EVERYTHING-" target="_blank" rel="noreferrer">Source repository ↗</a></footer>
