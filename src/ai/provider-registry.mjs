@@ -36,7 +36,7 @@ function configuredProvider(profile, env, globallyEnabled) {
     : ["chat"];
   const keyAvailable = Boolean(apiKey || ((safety.local || safety.internalHttp) && protocol === "openai-compatible"));
   return {
-    id, name, baseUrl, model, protocol, apiKeyEnv, apiKey, local: safety.local, internalHttp: safety.internalHttp, enabled, capabilities,
+    id, name, baseUrl, model, protocol, apiKeyEnv, apiKey, local: safety.local, internalHttp: safety.internalHttp, allowInternalHttp: safety.internalHttp, enabled, capabilities,
     configured: Boolean(globallyEnabled && enabled && SUPPORTED_PROTOCOLS.has(protocol) && safety.safe && baseUrl && model && keyAvailable)
   };
 }
