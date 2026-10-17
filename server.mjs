@@ -282,8 +282,18 @@ const server = createServer(async (req, res) => {
       if (!body || body.confirmed !== true) {
         return sendJson(res, 400, { error: { code: "confirmation_required", message: "Review the tool name and arguments, then explicitly confirm before execution." } });
       }
-      const result = await createMcpClient().callTool(body.name, body.arguments ?? {});
-      return sendJson(res, 200, { result });
+      const controller = new AbortController();
+      const abortRequest = () => controller.abort();
+      const abortDisconnectedResponse = () => { if (!res.writableEnded) controller.abort(); };
+      req.once("aborted", abortRequest);
+      res.once("close", abortDisconnectedResponse);
+      try {
+        const result = await createMcpClient({ signal: controller.signal }).callTool(body.name, body.arguments ?? {});
+        return sendJson(res, 200, { result });
+      } finally {
+        req.off("aborted", abortRequest);
+        res.off("close", abortDisconnectedResponse);
+      }
     } catch (error) {
       return routeError(res, error, "mcp_tool_call_failed");
     }
