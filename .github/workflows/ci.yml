@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "foundation/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12"
+      - name: Run tests
+        run: npm test
+      - name: Check server syntax
+        run: node --check server.mjs && node --check src/registry.mjs && node --check public/app.js
+      - name: Smoke-test HTTP server
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT=18787 node server.mjs > /tmp/everything-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18787/api/health > /tmp/everything-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const health = JSON.parse(fs.readFileSync("/tmp/everything-health.json", "utf8"));
+            if (health.status !== "ok") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/apps | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (!Array.isArray(payload.apps) || payload.apps.length < 10) process.exit(1);
+          '
