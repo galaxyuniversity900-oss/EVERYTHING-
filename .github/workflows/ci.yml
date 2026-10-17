@@ -159,7 +159,7 @@ jobs:
             server.listen(18789, "127.0.0.1");
           ' > /tmp/everything-model-server.log 2>&1 &
           MODEL_PID=$!
-          AI_API_ENABLED=true OPENAI_BASE_URL=http://127.0.0.1:18789/v1 OPENAI_MODEL=ci-model OPENAI_API_KEY=ci-provider-secret PORT=18790 node server.mjs > /tmp/everything-ai-check-server.log 2>&1 &
+          AI_API_ENABLED=true AI_MAX_CONCURRENT_REQUESTS=1 OPENAI_BASE_URL=http://127.0.0.1:18789/v1 OPENAI_MODEL=ci-model OPENAI_API_KEY=ci-provider-secret PORT=18790 node server.mjs > /tmp/everything-ai-check-server.log 2>&1 &
           AI_PID=$!
           trap 'kill "$SERVER_PID" "$AUTH_PID" "$MODEL_PID" "$AI_PID" 2>/dev/null || true' EXIT
           for _ in $(seq 1 30); do
