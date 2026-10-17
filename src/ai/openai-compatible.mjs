@@ -11,7 +11,8 @@ export async function createChatCompletion({
   messages,
   fetchImpl = fetch,
   timeoutMs = 60_000,
-  allowInternalHttp = false
+  allowInternalHttp = false,
+  signal
 }) {
   let base;
   try { base = new URL(baseUrl); }
@@ -40,6 +41,9 @@ export async function createChatCompletion({
   const controller = new AbortController();
   const timeout = Math.max(1000, Math.min(Number(timeoutMs) || 60_000, MAX_TIMEOUT_MS));
   const timer = setTimeout(() => controller.abort(), timeout);
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", abortFromCaller, { once: true });
   try {
     const headers = { "content-type": "application/json", accept: "application/json" };
     if (apiKey) headers.authorization = `Bearer ${apiKey}`;
@@ -67,9 +71,13 @@ export async function createChatCompletion({
     }
     return { content, model: payload.model || model, usage: payload.usage || null };
   } catch (error) {
-    if (error.name === "AbortError") throw Object.assign(new Error("AI provider request timed out"), { code: "provider_timeout", status: 504 });
+    if (error.name === "AbortError") {
+      if (signal?.aborted) throw Object.assign(new Error("AI request was cancelled"), { code: "provider_cancelled", status: 499 });
+      throw Object.assign(new Error("AI provider request timed out"), { code: "provider_timeout", status: 504 });
+    }
     throw error;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 }
