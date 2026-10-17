@@ -6,7 +6,7 @@ import { createRemoteWorker } from "../remote-worker/server.mjs";
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
 
-function makeWorker({ maxSessions = 2, now = () => Date.now() } = {}) {
+function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false } = {}) {
   const calls = [];
   const worker = createRemoteWorker({
     now,
@@ -19,6 +19,7 @@ function makeWorker({ maxSessions = 2, now = () => Date.now() } = {}) {
     },
     execFileImpl: async (_command, args) => {
       calls.push(args);
+      if (args[0] === "run" && delayRun) await new Promise((resolve) => setTimeout(resolve, 25));
       if (args[0] === "run") return { stdout: "container-id" };
       if (args[0] === "port") return { stdout: "127.0.0.1:34567\n" };
       if (args[0] === "rm" || args[0] === "ps") return { stdout: "" };
@@ -155,5 +156,25 @@ test("worker expires absolute-TTL and idle sessions and removes their containers
     assert.equal(worker.sessions.size, 0);
     await new Promise((resolve) => setImmediate(resolve));
     assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes(`everything-${idle.id}`)));
+  } finally { await worker.close(); }
+});
+
+
+test("worker reserves capacity during concurrent container startup", async () => {
+  const worker = makeWorker({ maxSessions: 1, delayRun: true });
+  const base = await listen(worker);
+  try {
+    const options = {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    };
+    const results = await Promise.all([
+      fetch(`${base}/v1/sessions`, options),
+      fetch(`${base}/v1/sessions`, options)
+    ]);
+    assert.deepEqual(results.map((response) => response.status).sort((a, b) => a - b), [201, 429]);
+    assert.equal(worker.sessions.size, 1);
+    assert.equal(worker.calls.filter((args) => args[0] === "run").length, 1);
   } finally { await worker.close(); }
 });

@@ -138,6 +138,7 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
   const config = readWorkerConfig(env);
   const appsById = new Map(config.apps.map((app) => [app.id, app]));
   const sessions = new Map();
+  let pendingSessions = 0;
 
   async function docker(args) {
     try {
@@ -205,7 +206,9 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
   async function createSession(appId) {
     const app = appsById.get(appId);
     if (!app) throw httpError(400, "app_not_supported", "This worker does not advertise that app id");
-    if (sessions.size >= config.maxSessions) throw httpError(429, "session_capacity_reached", "All remote sessions are in use; try again later");
+    if (sessions.size + pendingSessions >= config.maxSessions) throw httpError(429, "session_capacity_reached", "All remote sessions are in use; try again later");
+    pendingSessions += 1;
+    try {
     const id = randomBytesImpl(8).toString("hex");
     const viewToken = randomBytesImpl(16).toString("hex");
     const containerName = `everything-${id}`;
@@ -248,6 +251,9 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
         try { await docker(["rm", "-f", containerName]); } catch { /* Best-effort rollback. */ }
       }
       throw error;
+    }
+    } finally {
+      pendingSessions -= 1;
     }
   }
 
