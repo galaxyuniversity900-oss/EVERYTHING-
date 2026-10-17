@@ -6,6 +6,7 @@ import { getApps, apps } from "./src/registry.mjs";
 import { createChatCompletion } from "./src/ai/openai-compatible.mjs";
 import { assessCapabilities } from "./src/runtime/capabilities.mjs";
 import { createMcpClient } from "./src/mcp/client.mjs";
+import { createRemoteRuntime } from "./src/runtime/remote-provider.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, "public");
@@ -17,6 +18,9 @@ const localAiHost = (() => { try { return ["localhost", "127.0.0.1", "::1"].incl
 const aiConfigured = aiEnabled && (Boolean(process.env.OPENAI_API_KEY) || localAiHost);
 const aiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const mcpConfigured = Boolean(process.env.MCP_SERVER_URL);
+const remoteConfigured = Boolean(process.env.REMOTE_RUNTIME_URL);
+const remoteRateBuckets = new Map();
+const activeRemoteSessions = new Map();
 const MAX_BODY_BYTES = 48 * 1024;
 const rateBuckets = new Map();
 const mcpRateBuckets = new Map();
@@ -115,15 +119,30 @@ const server = createServer(async (req, res) => {
         wasm: url.searchParams.get("wasm") === "1",
         webgpu: url.searchParams.get("webgpu") === "1",
         network: url.searchParams.get("network") !== "0",
-        remoteAvailable: false
+        remoteAvailable: remoteConfigured && url.searchParams.get("network") !== "0"
       });
-      return sendJson(res, 200, { ...result, remoteExecutionImplemented: false });
+      return sendJson(res, 200, { ...result, remoteSessionAdapterImplemented: true, remoteRuntimeConfigured: remoteConfigured });
     }
     if (url.pathname === "/api/mcp/status") {
       return sendJson(res, 200, {
         configured: mcpConfigured,
         setup: mcpConfigured ? null : "Set MCP_SERVER_URL on the server. Optional bearer authentication uses MCP_ACCESS_TOKEN."
       });
+    }
+    if (url.pathname === "/api/runtime/remote/status") {
+      return sendJson(res, 200, {
+        configured: remoteConfigured,
+        setup: remoteConfigured ? null : "Configure REMOTE_RUNTIME_URL and optional REMOTE_RUNTIME_TOKEN on the server."
+      });
+    }
+    if (url.pathname === "/api/runtime/remote/apps") {
+      if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+      try {
+        const result = await createRemoteRuntime().capabilities();
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return routeError(res, error, "remote_capabilities_failed");
+      }
     }
     if (url.pathname === "/api/mcp/tools") {
       if (!mcpConfigured) return sendJson(res, 503, { error: { code: "mcp_not_configured", message: "Configure MCP_SERVER_URL on the server first." } });
@@ -188,6 +207,43 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 200, { result });
     } catch (error) {
       return routeError(res, error, "mcp_tool_call_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/runtime/remote/sessions") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+    if (!rateLimit(req, remoteRateBuckets, 5)) return sendJson(res, 429, { error: { code: "remote_runtime_rate_limited", message: "Too many session requests. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || body.confirmed !== true) return sendJson(res, 400, { error: { code: "confirmation_required", message: "Explicitly confirm before creating a remote session." } });
+      const runtime = createRemoteRuntime();
+      const supported = await runtime.capabilities();
+      if (!supported.apps.some((app) => app.id === body.appId)) {
+        return sendJson(res, 400, { error: { code: "remote_app_not_supported", message: "The configured runtime does not list this app as supported." } });
+      }
+      const session = await runtime.createSession(body.appId);
+      activeRemoteSessions.set(session.id, { appId: session.appId, createdAt: Date.now() });
+      return sendJson(res, 201, session);
+    } catch (error) {
+      return routeError(res, error, "remote_session_create_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/runtime/remote/sessions/close") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || body.confirmed !== true) return sendJson(res, 400, { error: { code: "confirmation_required", message: "Explicitly confirm before closing a remote session." } });
+      if (!activeRemoteSessions.has(body.id)) return sendJson(res, 404, { error: { code: "remote_session_not_found", message: "This session was not created by this running workspace process." } });
+      const result = await createRemoteRuntime().deleteSession(body.id);
+      activeRemoteSessions.delete(body.id);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return routeError(res, error, "remote_session_close_failed");
     }
   }
 
