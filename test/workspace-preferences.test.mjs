@@ -29,6 +29,6 @@ test("install prompt is user-triggered and PWA cache version advances", () => {
   assert.match(html, /id="install-app"/);
   assert.match(app, /beforeinstallprompt/);
   assert.match(app, /installPrompt\.prompt\(\)/);
-  assert.match(worker, /everything-shell-v3/);
+  assert.match(worker, /everything-shell-v4/);
   assert.doesNotMatch(worker, /\/api\/ai\/chat/);
 });
