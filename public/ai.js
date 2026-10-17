@@ -23,7 +23,7 @@ async function checkProvider() {
     const data = await response.json();
     status.textContent = data.providers?.[0]?.configured
       ? `Provider configured · ${data.providers[0].model}`
-      : "AI is optional: configure OPENAI_API_KEY on the server to enable it.";
+      : "AI is disabled. Configure a server-side cloud key or a localhost-compatible model endpoint, then set AI_API_ENABLED=true.";
   } catch {
     status.textContent = "AI provider status unavailable.";
   }
