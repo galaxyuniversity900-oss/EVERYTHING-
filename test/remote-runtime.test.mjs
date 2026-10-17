@@ -52,3 +52,40 @@ test("remote runtime refuses unsafe session URLs returned by the provider", asyn
   });
   await assert.rejects(runtime.createSession("editor"), (error) => error.code === "unsafe_remote_session_url");
 });
+
+
+test("remote runtime cancels oversized streamed responses before buffering them fully", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(700 * 1024));
+      controller.enqueue(new Uint8Array(400 * 1024));
+      controller.enqueue(new Uint8Array(10));
+    },
+    cancel() { cancelled = true; }
+  });
+  const runtime = createRemoteRuntime({
+    env: { REMOTE_RUNTIME_URL: "https://runtime.example.test/" },
+    fetchImpl: async () => new Response(body, { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(runtime.capabilities(), (error) => error.code === "remote_response_too_large" && error.status === 502);
+  assert.equal(cancelled, true);
+});
+
+test("remote runtime keeps valid streamed JSON responses working", async () => {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('{"provider":"streamed","apps":'));
+      controller.enqueue(encoder.encode('[{"id":"editor"}]}'));
+      controller.close();
+    }
+  });
+  const runtime = createRemoteRuntime({
+    env: { REMOTE_RUNTIME_URL: "https://runtime.example.test/" },
+    fetchImpl: async () => new Response(body, { status: 200, headers: { "content-type": "application/json" } })
+  });
+  const result = await runtime.capabilities();
+  assert.equal(result.provider, "streamed");
+  assert.deepEqual(result.apps.map((app) => app.id), ["editor"]);
+});
