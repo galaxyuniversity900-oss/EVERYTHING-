@@ -339,7 +339,7 @@ test("worker rolls back a container when the application port never becomes read
   } finally { await worker.close(); }
 });
 
-test("worker clamps the configured application startup timeout", () => {
+test("worker clamps the configured application startup timeout", async () => {
   const worker = createRemoteWorker({
     env: {
       WORKER_TOKEN: token,
@@ -352,5 +352,5 @@ test("worker clamps the configured application startup timeout", () => {
     execFileImpl: async () => ({ stdout: "" })
   });
   assert.equal(worker.config.startupTimeoutMs, 60_000);
-  void worker.close();
+  await worker.close();
 });
