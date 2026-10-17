@@ -3,12 +3,14 @@ const input = document.querySelector("#ai-input");
 const output = document.querySelector("#ai-output");
 const status = document.querySelector("#ai-status");
 const sendButton = document.querySelector("#ai-send");
+const cancelButton = document.querySelector("#ai-cancel");
 const providerSelect = document.querySelector("#ai-provider");
 const taskSelect = document.querySelector("#ai-task");
 const connectionButton = document.querySelector("#ai-check-provider");
 let defaultProviderId = null;
 let configuredProviders = [];
 let history = [];
+let activeChatController = null;
 
 function addMessage(role, content) {
   const article = document.createElement("article");
@@ -108,6 +110,13 @@ connectionButton.addEventListener("click", async () => {
   }
 });
 
+cancelButton.addEventListener("click", () => {
+  if (!activeChatController) return;
+  cancelButton.disabled = true;
+  status.textContent = "Cancelling AI request…";
+  activeChatController.abort();
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const content = input.value.trim();
@@ -117,12 +126,16 @@ form.addEventListener("submit", async (event) => {
   addMessage("user", content);
   input.value = "";
   sendButton.disabled = true;
+  const controller = new AbortController();
+  activeChatController = controller;
+  cancelButton.disabled = false;
   status.textContent = "Waiting for the selected AI route…";
   try {
     const response = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(requestContext(taskSelect.value))
+      body: JSON.stringify(requestContext(taskSelect.value)),
+      signal: controller.signal
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "AI request failed");
@@ -132,8 +145,10 @@ form.addEventListener("submit", async (event) => {
     status.textContent = `Response from ${data.providerName || data.providerId} · ${data.model}`;
   } catch (error) {
     if (history.at(-1)?.role === "user") history.pop();
-    status.textContent = error.message;
+    status.textContent = controller.signal.aborted || error.name === "AbortError" ? "AI request cancelled." : error.message;
   } finally {
+    activeChatController = null;
+    cancelButton.disabled = true;
     sendButton.disabled = providerSelect.options.length < 2;
     input.focus();
   }
