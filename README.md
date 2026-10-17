@@ -16,7 +16,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 - A rate-limited provider connection check that probes model-list endpoints without generating completion tokens and reports latency/model availability.
 - Browser capability assessment for WASM/WebGPU plus approximate device-memory, CPU, and network constraints to recommend browser-native versus configured remote execution.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
-- Remote runtime provider adapter and optional Docker-backed session worker with allowlisted images, resource limits, bearer-protected worker APIs, and ephemeral browser-view sessions.
+- Remote runtime provider adapter and optional Docker-backed session worker with allowlisted images, configurable CPU/RAM/shared-memory/PID limits, opt-in NVIDIA GPU allocation, bearer-protected worker APIs, and ephemeral browser-view sessions. The app directory displays advertised resource profiles before launch.
 - Automated tests, GitHub Actions HTTP/container smoke tests, a lightweight source-asset budget check, and scheduled CodeQL static analysis.
 - Configuration, security, architecture, and remote provider API documentation.
 
@@ -148,7 +148,7 @@ MCP tools can read, change, or delete data. Connect only trusted servers. The co
 
 ## Optional Docker session worker
 
-This repository includes a separate Docker-backed worker reference implementation in [remote-worker/README.md](remote-worker/README.md). It launches only administrator-allowlisted images, applies container resource limits, binds app ports to loopback, and returns session URLs on a wildcard HTTPS hostname. It is not enabled by default and does not run until a Docker host and reverse proxy are configured.
+This repository includes a separate Docker-backed worker reference implementation in [remote-worker/README.md](remote-worker/README.md). It launches only administrator-allowlisted images, applies per-app CPU/RAM/shared-memory/PID limits and optional GPU allocation, binds app ports to loopback, advertises the resource profile to the UI, and returns session URLs on a wildcard HTTPS hostname. GPU allocation requires a Linux Docker host with the NVIDIA Container Toolkit. The worker is not enabled by default and does not run until a Docker host and reverse proxy are configured.
 
 Worker sessions are ephemeral. The worker is highly privileged because it controls Docker, so deploy it only on a dedicated host with trusted, pinned images. Do not expose the worker's Node port directly; follow the reverse-proxy and access-log guidance in the worker guide.
 
