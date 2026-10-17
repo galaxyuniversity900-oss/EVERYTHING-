@@ -1,6 +1,6 @@
 {
   "name": "everything-platform",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "A lightweight web workspace for browser-based apps, with adaptive local and remote execution planned as explicit capabilities.",
