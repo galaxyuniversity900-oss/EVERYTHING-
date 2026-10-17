@@ -99,6 +99,82 @@ async function geminiCompletion({ provider, messages, fetchImpl, timeoutMs }) {
   return { content, model: provider.model, usage: payload.usageMetadata || null };
 }
 
+
+const MAX_CHECK_TIMEOUT_MS = 8_000;
+const MAX_CHECK_RESPONSE_BYTES = 256 * 1024;
+
+export async function checkProviderConnection({ provider, fetchImpl = fetch, timeoutMs = MAX_CHECK_TIMEOUT_MS } = {}) {
+  if (!provider || !provider.configured || !provider.baseUrl || !provider.model) {
+    throw Object.assign(new Error("The selected provider is not configured"), { code: "provider_not_configured", status: 503 });
+  }
+  const protocol = provider.protocol || "openai-compatible";
+  let base;
+  if (protocol === "anthropic" || protocol === "gemini") {
+    base = nativeProviderBase(provider.baseUrl);
+    if (!provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
+  } else if (protocol === "openai-compatible") {
+    try { base = new URL(provider.baseUrl); }
+    catch { throw Object.assign(new Error("AI provider URL is invalid"), { code: "invalid_provider_url", status: 500 }); }
+    const local = LOOPBACK_HOSTS.has(base.hostname) && base.protocol === "http:";
+    if ((!local && base.protocol !== "https:") || base.username || base.password || base.hash || base.search) {
+      throw Object.assign(new Error("AI provider URL is unsafe"), { code: "unsafe_provider_url", status: 500 });
+    }
+    if (!local && !provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
+    base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
+  } else {
+    throw Object.assign(new Error("Unsupported AI provider protocol"), { code: "unsupported_provider_protocol", status: 400 });
+  }
+
+  const url = new URL("models", base);
+  const headers = { accept: "application/json" };
+  if (provider.apiKey) {
+    if (protocol === "anthropic") {
+      headers["x-api-key"] = provider.apiKey;
+      headers["anthropic-version"] = "2023-06-01";
+    } else if (protocol === "gemini") {
+      headers["x-goog-api-key"] = provider.apiKey;
+    } else {
+      headers.authorization = `Bearer ${provider.apiKey}`;
+    }
+  }
+
+  const controller = new AbortController();
+  const timeout = Math.max(1000, Math.min(Number(timeoutMs) || MAX_CHECK_TIMEOUT_MS, MAX_CHECK_TIMEOUT_MS));
+  const timer = setTimeout(() => controller.abort(), timeout);
+  const started = Date.now();
+  try {
+    const response = await fetchImpl(url, { method: "GET", headers, signal: controller.signal, redirect: "error" });
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > MAX_CHECK_RESPONSE_BYTES) {
+      throw Object.assign(new Error("Provider model-list response exceeded the size limit"), { code: "provider_response_too_large", status: 502 });
+    }
+    if (!response.ok) {
+      throw Object.assign(new Error(`Provider returned HTTP ${response.status}`), { code: "provider_connection_failed", status: 502 });
+    }
+    let payload;
+    try { payload = JSON.parse(text); }
+    catch { throw Object.assign(new Error("Provider returned invalid JSON for its model list"), { code: "invalid_provider_response", status: 502 }); }
+    const rawModels = Array.isArray(payload?.data) ? payload.data
+      : Array.isArray(payload?.models) ? payload.models
+      : [];
+    const ids = rawModels.map((item) => typeof item?.id === "string" ? item.id
+      : typeof item?.name === "string" ? item.name.replace(/^models\//, "")
+      : "").filter(Boolean);
+    return {
+      ok: true,
+      latencyMs: Math.max(0, Date.now() - started),
+      modelsCount: ids.length,
+      modelListed: ids.length ? ids.includes(provider.model) || ids.includes(`models/${provider.model}`) : null
+    };
+  } catch (error) {
+    if (error.code) throw error;
+    if (error.name === "AbortError") throw Object.assign(new Error("Provider connection timed out"), { code: "provider_timeout", status: 504 });
+    throw Object.assign(new Error("Could not reach provider. Check endpoint and network settings."), { code: "provider_connection_failed", status: 502 });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function createProviderCompletion({ provider, messages, fetchImpl = fetch, timeoutMs } = {}) {
   if (!provider || !provider.baseUrl || !provider.model) {
     throw Object.assign(new Error("AI provider configuration is incomplete"), { code: "provider_not_configured", status: 503 });

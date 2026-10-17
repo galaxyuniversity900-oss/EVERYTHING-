@@ -87,7 +87,7 @@ OPENAI_BASE_URL=http://127.0.0.1:11434/v1
 
 For multiple providers, set `AI_PROVIDERS_JSON` to a JSON array of profiles. Each profile uses `id`, `name`, `baseUrl`, `model`, optional `protocol`, optional `apiKeyEnv`, optional `enabled`, and optional `capabilities`. Supported protocols are `openai-compatible` (including NVIDIA NIM and many compatible gateways), `anthropic`, and `gemini`. API keys are resolved from server environment variables named by `apiKeyEnv`; do not place key values in the JSON. Replace each example model with one available to your account. All native adapters currently support text chat only; the protocol setting does not imply image/audio/video support.
 
-Set `AI_DEFAULT_PROVIDER` to select the default profile. Optional `AI_FALLBACK_ENABLED=true` enables fallback to another configured provider after eligible provider errors; this may retry a request and incur costs, so it is off by default. The UI can select a provider and task category, and the router can use declared capabilities when auto-routing. Supported task labels are configured by each profile (for example `chat`, `coding`, `reasoning`, and `fast`); these labels do not add model modalities that the underlying endpoint does not support.
+Use **Test connection** in the AI panel to verify the selected provider endpoint without generating a completion. This may still make a provider API request and is rate-limited. Set `AI_DEFAULT_PROVIDER` to select the default profile. Optional `AI_FALLBACK_ENABLED=true` enables fallback to another configured provider after eligible provider errors; this may retry a request and incur costs, so it is off by default. The UI can select a provider and task category, and the router can use declared capabilities when auto-routing. Supported task labels are configured by each profile (for example `chat`, `coding`, `reasoning`, and `fast`); these labels do not add model modalities that the underlying endpoint does not support.
 
 Restart after changing `.env`. Local endpoints and selected models must already be running; this project does not download model weights. Remote providers must use HTTPS; HTTP is allowed only for loopback endpoints. Never commit `.env` or put provider keys in browser code. Messages are sent to the selected provider, so review its privacy and retention policy before sending sensitive data. AI is disabled by default.
 
@@ -127,6 +127,7 @@ The service must implement `GET /v1/capabilities`, `POST /v1/sessions`, and `DEL
 - `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout` — optional shared-password access gate.
 - `GET /api/apps?q=spreadsheet&category=Office` — catalog.
 - `GET /api/ai/providers` — configured provider list and routing defaults, without secrets.
+- `POST /api/ai/providers/check` — tests the selected provider model-list endpoint without generating model tokens; returns latency and whether the configured model appears in the list.
 - `POST /api/ai/chat` — non-streaming OpenAI-compatible chat with optional `providerId` and `task` fields.
 - `GET /api/runtime/capabilities?wasm=1&webgpu=0&network=1` — browser feature assessment plus adapter/configuration status.
 - `GET /api/mcp/status`, `GET /api/mcp/tools` — MCP status and tool discovery.
