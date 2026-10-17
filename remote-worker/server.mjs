@@ -25,9 +25,12 @@ function waitForTcpPort(port, { timeoutMs = 20_000 } = {}) {
     const attempt = () => {
       if (Date.now() >= deadline) return finish(false);
       const socket = connectTcp({ host: "127.0.0.1", port });
+      let retrying = false;
       socket.setTimeout(500);
       socket.once("connect", () => { socket.destroy(); finish(true); });
       const retry = () => {
+        if (settled || retrying) return;
+        retrying = true;
         socket.destroy();
         if (Date.now() >= deadline) finish(false);
         else retryTimer = setTimeout(attempt, 150);
