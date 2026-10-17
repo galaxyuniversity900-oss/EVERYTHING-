@@ -19,12 +19,24 @@ function renderApps(apps) {
     heading.textContent = app.name;
     const description = document.createElement("p");
     description.textContent = app.description || "No description provided by runtime.";
+    const resources = document.createElement("p");
+    resources.className = "remote-resources";
+    if (app.resources) {
+      const parts = [];
+      if (app.resources.memory) parts.push(`RAM ${app.resources.memory}`);
+      if (Number.isFinite(app.resources.cpus)) parts.push(`CPU ${app.resources.cpus}`);
+      if (Number.isFinite(app.resources.gpus)) parts.push(`GPU ${app.resources.gpus}`);
+      if (Number.isFinite(app.resources.pids)) parts.push(`PIDs ${app.resources.pids}`);
+      resources.textContent = parts.length ? parts.join(" · ") : "Resource limits managed by runtime.";
+    } else {
+      resources.textContent = "Resource limits managed by runtime.";
+    }
     const launch = document.createElement("button");
     launch.type = "button";
     launch.className = "remote-launch";
     launch.textContent = "Launch remote ↗";
     launch.addEventListener("click", () => launchApp(app));
-    card.append(heading, description, launch);
+    card.append(heading, description, resources, launch);
     appsNode.append(card);
   }
 }
