@@ -5,6 +5,9 @@ const status = document.querySelector("#ai-status");
 const sendButton = document.querySelector("#ai-send");
 const providerSelect = document.querySelector("#ai-provider");
 const taskSelect = document.querySelector("#ai-task");
+const connectionButton = document.querySelector("#ai-check-provider");
+let defaultProviderId = null;
+let configuredProviders = [];
 let history = [];
 
 function addMessage(role, content) {
@@ -50,12 +53,14 @@ async function checkProvider() {
   try {
     const response = await fetch("/api/ai/providers");
     const data = await response.json();
+    defaultProviderId = data.defaultProviderId || null;
     providerSelect.replaceChildren();
     const auto = document.createElement("option");
     auto.value = "";
     auto.textContent = `Auto route${data.defaultProviderId ? ` · default: ${data.defaultProviderId}` : ""}`;
     providerSelect.append(auto);
     const configured = (data.providers || []).filter((provider) => provider.configured);
+    configuredProviders = configured;
     for (const provider of configured) {
       const option = document.createElement("option");
       option.value = provider.id;
@@ -65,6 +70,7 @@ async function checkProvider() {
     providerSelect.disabled = configured.length === 0;
     taskSelect.disabled = configured.length === 0;
     sendButton.disabled = configured.length === 0;
+    connectionButton.disabled = configured.length === 0;
     if (configured.length) {
       status.textContent = `${configured.length} AI provider(s) ready. ${data.fallbackEnabled ? "Automatic fallback is enabled." : "Automatic fallback is off."}`;
     } else {
@@ -73,8 +79,34 @@ async function checkProvider() {
   } catch {
     status.textContent = "AI provider status unavailable.";
     sendButton.disabled = true;
+    connectionButton.disabled = true;
   }
 }
+
+connectionButton.addEventListener("click", async () => {
+  const providerId = providerSelect.value || defaultProviderId || configuredProviders[0]?.id;
+  if (!providerId) return;
+  const provider = configuredProviders.find((item) => item.id === providerId);
+  connectionButton.disabled = true;
+  status.textContent = `Testing connection to ${provider?.name || providerId}…`;
+  try {
+    const response = await fetch("/api/ai/providers/check", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ providerId })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Provider connection failed");
+    const modelStatus = data.modelListed === true ? "The configured model appears in the provider list."
+      : data.modelListed === false ? "The endpoint is reachable, but the configured model ID was not listed; check the model name or alias."
+      : "The endpoint is reachable; its model list does not expose comparable IDs.";
+    status.textContent = `Connection OK · ${data.providerName} · ${data.latencyMs} ms. ${modelStatus}`;
+  } catch (error) {
+    status.textContent = `Connection test failed: ${error.message}`;
+  } finally {
+    connectionButton.disabled = configuredProviders.length === 0;
+  }
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
