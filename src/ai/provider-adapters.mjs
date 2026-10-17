@@ -87,8 +87,7 @@ async function geminiCompletion({ provider, messages, fetchImpl, timeoutMs }) {
   if (!contents.length) throw Object.assign(new Error("At least one user or assistant message is required"), { code: "invalid_messages", status: 400 });
   const body = { contents, generationConfig: { maxOutputTokens: 2048 } };
   if (systemMessages.length) body.systemInstruction = { parts: [{ text: systemMessages.join("\n\n") }] };
-  const base = new URL(provider.baseUrl);
-  base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
+  const base = nativeProviderBase(provider.baseUrl);
   const url = new URL(`models/${encodeURIComponent(provider.model)}:generateContent`, base);
   const payload = await requestJson({
     url,
