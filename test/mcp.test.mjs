@@ -44,3 +44,23 @@ test("MCP client performs initialize, initialized notification, and tools/list",
   assert.equal(result.server.name, "test-mcp");
   assert.equal(result.tools[0].name, "echo");
 });
+
+test("MCP client reads the matching JSON-RPC response from an SSE stream", async () => {
+  const fetchImpl = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    if (payload.method === "initialize") {
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { protocolVersion: "2025-03-26", serverInfo: { name: "sse-mcp" } } }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+    if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (payload.method === "tools/list") {
+      const event = `event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [{ name: "from_sse" }] } })}\n\n`;
+      return new Response(event, { status: 200, headers: { "content-type": "text/event-stream" } });
+    }
+    throw new Error("unexpected method");
+  };
+  const client = createMcpClient({ env: { MCP_SERVER_URL: "https://mcp.example.test/mcp" }, fetchImpl });
+  const result = await client.listTools();
+  assert.equal(result.tools[0].name, "from_sse");
+});
