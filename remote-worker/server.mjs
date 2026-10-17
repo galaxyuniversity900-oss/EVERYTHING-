@@ -50,7 +50,7 @@ function readWorkerConfig(env) {
     if (!Number.isSafeInteger(memoryMiB) || memoryMiB < 128 || memoryMiB > 16 * 1024) throw new Error(`App ${app.id} memory must be between 128m and 16g`);
     const memory = memoryInput;
     const shmInput = typeof app.shmSize === "string" ? app.shmSize : "256m";
-    const shmMatch = /^(\\d+)(m|g)$/.exec(shmInput);
+    const shmMatch = /^(\d+)(m|g)$/.exec(shmInput);
     const shmMiB = shmMatch ? Number(shmMatch[1]) * (shmMatch[2] === "g" ? 1024 : 1) : 0;
     if (!Number.isSafeInteger(shmMiB) || shmMiB < 64 || shmMiB > 2048) throw new Error(`App ${app.id} shmSize must be between 64m and 2g`);
     const shmSize = shmInput;
