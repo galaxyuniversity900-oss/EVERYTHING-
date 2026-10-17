@@ -9,6 +9,7 @@ on:
       - ".github/workflows/release.yml"
       - "package.json"
       - "server.mjs"
+      - "remote-worker/**"
       - "src/**"
       - "public/**"
   workflow_dispatch:
@@ -40,6 +41,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check server.mjs
+          node --check remote-worker/server.mjs
           node --check src/registry.mjs
           node --check src/security/auth.mjs
           node --check src/ai/openai-compatible.mjs
