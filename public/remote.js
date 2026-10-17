@@ -3,7 +3,7 @@ const appsNode = document.querySelector("#remote-apps");
 const sessionsNode = document.querySelector("#remote-sessions");
 const refreshButton = document.querySelector("#remote-refresh");
 
-function renderApps(apps) {
+function renderApps(apps, capacity = null) {
   appsNode.replaceChildren();
   if (!apps.length) {
     const empty = document.createElement("p");
@@ -35,7 +35,10 @@ function renderApps(apps) {
     const launch = document.createElement("button");
     launch.type = "button";
     launch.className = "remote-launch";
-    launch.textContent = "Launch remote ↗";
+    const capacityFull = Number.isFinite(capacity?.availableSlots) && capacity.availableSlots <= 0;
+    launch.disabled = capacityFull;
+    launch.textContent = capacityFull ? "Capacity reached" : "Launch remote ↗";
+    if (capacityFull) launch.title = "All remote session slots are in use. Refresh status before trying again.";
     launch.addEventListener("click", () => launchApp(app));
     card.append(heading, description, resources, launch);
     appsNode.append(card);
@@ -115,7 +118,7 @@ async function loadRemoteApps() {
     const response = await fetch("/api/runtime/remote/apps");
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "Remote runtime discovery failed.");
-    renderApps(data.apps || []);
+    renderApps(data.apps || [], data.capacity || null);
     const capacityText = data.capacity && Number.isFinite(data.capacity.availableSlots)
       ? ` ${data.capacity.activeSessions ?? "?"}/${data.capacity.maxSessions ?? "?"} sessions in use; ${data.capacity.availableSlots} slots available.`
       : "";
