@@ -84,7 +84,7 @@ jobs:
           node --input-type=module -e '
             import fs from "node:fs";
             const data = JSON.parse(fs.readFileSync("/tmp/worker-capabilities.json", "utf8"));
-            if (!Array.isArray(data.apps) || !data.apps.some((app) => app.id === "nginx-smoke")) process.exit(1);
+            if (!Array.isArray(data.apps) || !data.apps.some((app) => app.id === "http-smoke")) process.exit(1);
           '
 
           CREATE_STATUS=$(curl --silent --output /tmp/worker-session.json --write-out '%{http_code}' \
@@ -92,7 +92,7 @@ jobs:
             -X POST http://127.0.0.1:18788/v1/sessions \
             -H "Authorization: Bearer $WORKER_TOKEN" \
             -H 'content-type: application/json' \
-            --data '{"appId":"nginx-smoke","client":"container-ci"}')
+            --data '{"appId":"http-smoke","client":"container-ci"}')
           test "$CREATE_STATUS" = "201"
           SESSION_ID=$(node --input-type=module -e '
             import fs from "node:fs";
