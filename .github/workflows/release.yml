@@ -8,6 +8,11 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "package.json"
+      - ".env.example"
+      - ".dockerignore"
+      - "Dockerfile"
+      - "compose.yaml"
+      - "compose.gpu.yaml"
       - "server.mjs"
       - "remote-worker/**"
       - "src/**"
@@ -65,6 +70,8 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config --quiet
+          docker compose --profile local-ai config --quiet
+          docker compose -f compose.yaml -f compose.gpu.yaml --profile local-ai config --quiet
           docker compose build
 
   publish:
