@@ -51,3 +51,23 @@ test("AI stays disabled unless explicitly enabled", () => {
   const result = getAIProviderRegistry({ OPENAI_API_KEY: "key-value" });
   assert.equal(result.providers[0].configured, false);
 });
+
+
+test("internal HTTP model services require explicit opt-in and single-label service names", () => {
+  const profiles = JSON.stringify([
+    { id: "ollama", name: "Ollama", protocol: "openai-compatible", baseUrl: "http://ollama:11434/v1", model: "qwen2.5:1.5b", capabilities: ["chat"] },
+    { id: "dotted", name: "Dotted host", protocol: "openai-compatible", baseUrl: "http://ollama.internal:11434/v1", model: "model-x", capabilities: ["chat"] },
+    { id: "anthropic-http", name: "Invalid native provider", protocol: "anthropic", baseUrl: "http://anthropic:8080/v1", model: "model-x", capabilities: ["chat"] }
+  ]);
+  const disabled = getAIProviderRegistry({ AI_API_ENABLED: "true", AI_PROVIDERS_JSON: profiles });
+  assert.equal(disabled.providers[0].configured, false);
+
+  const enabled = getAIProviderRegistry({ AI_API_ENABLED: "true", AI_ALLOW_INTERNAL_HTTP: "true", AI_PROVIDERS_JSON: profiles });
+  assert.equal(enabled.providers[0].configured, true);
+  assert.equal(enabled.providers[0].allowInternalHttp, true);
+  assert.equal(enabled.providers[1].configured, false);
+  assert.equal(enabled.providers[2].configured, false);
+  const publicView = publicAIProviderRegistry({ AI_API_ENABLED: "true", AI_ALLOW_INTERNAL_HTTP: "true", AI_PROVIDERS_JSON: profiles });
+  assert.equal(publicView.providers[0].internalHttp, true);
+  assert.equal(JSON.stringify(publicView).includes("baseUrl"), false);
+});

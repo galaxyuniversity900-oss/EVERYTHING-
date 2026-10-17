@@ -1,6 +1,7 @@
 const MAX_TIMEOUT_MS = 90_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const isInternalServiceHost = (hostname) => /^[a-zA-Z][a-zA-Z0-9-]{0,62}$/.test(hostname) && !LOOPBACK_HOSTS.has(hostname);
 
 export async function createChatCompletion({
   apiKey,
@@ -8,19 +9,21 @@ export async function createChatCompletion({
   model,
   messages,
   fetchImpl = fetch,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  allowInternalHttp = false
 }) {
   let base;
   try { base = new URL(baseUrl); }
   catch { throw Object.assign(new Error("AI base URL is invalid"), { code: "invalid_provider_url", status: 500 }); }
   const local = LOOPBACK_HOSTS.has(base.hostname);
+  const internalHttp = allowInternalHttp && base.protocol === "http:" && isInternalServiceHost(base.hostname);
   if (base.username || base.password || base.hash || base.search) {
     throw Object.assign(new Error("AI provider URL cannot contain credentials, query parameters, or fragments"), { code: "unsafe_provider_url", status: 500 });
   }
-  if (base.protocol !== "https:" && !(local && base.protocol === "http:")) {
+  if (base.protocol !== "https:" && !(local && base.protocol === "http:") && !internalHttp) {
     throw Object.assign(new Error("AI provider URL must use HTTPS outside localhost"), { code: "insecure_provider_url", status: 500 });
   }
-  if (!apiKey && !local) throw Object.assign(new Error("A provider API key is required for non-local endpoints"), { code: "provider_not_configured", status: 503 });
+  if (!apiKey && !local && !internalHttp) throw Object.assign(new Error("A provider API key is required for non-local endpoints"), { code: "provider_not_configured", status: 503 });
   if (!model || typeof model !== "string") throw Object.assign(new Error("AI model is not configured"), { code: "model_not_configured", status: 503 });
   if (!Array.isArray(messages) || messages.length < 1 || messages.length > 40) {
     throw Object.assign(new Error("messages must contain between 1 and 40 items"), { code: "invalid_messages", status: 400 });

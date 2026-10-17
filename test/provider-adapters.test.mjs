@@ -109,3 +109,60 @@ test("provider connection check rejects unsafe URLs and hides transport details"
     (error) => error.code === "provider_connection_failed" && !error.message.includes("internal socket detail")
   );
 });
+
+
+test("OpenAI-compatible completion permits opted-in internal single-label inference services", async () => {
+  let requestedUrl;
+  const result = await createProviderCompletion({
+    provider: {
+      protocol: "openai-compatible",
+      baseUrl: "http://ollama:11434/v1",
+      model: "qwen2.5:1.5b",
+      allowInternalHttp: true
+    },
+    messages: [{ role: "user", content: "Hello" }],
+    fetchImpl: async (url, options) => {
+      requestedUrl = String(url);
+      assert.equal(options.headers.authorization, undefined);
+      return new Response(JSON.stringify({ choices: [{ message: { content: "Hello from local inference" } }], model: "qwen2.5:1.5b" }), {
+        status: 200, headers: { "content-type": "application/json" }
+      });
+    }
+  });
+  assert.equal(requestedUrl, "http://ollama:11434/v1/chat/completions");
+  assert.equal(result.content, "Hello from local inference");
+});
+
+test("internal HTTP inference endpoints are rejected by the transport unless explicitly allowed", async () => {
+  await assert.rejects(
+    createProviderCompletion({
+      provider: { protocol: "openai-compatible", baseUrl: "http://ollama:11434/v1", model: "model-x" },
+      messages: [{ role: "user", content: "Hello" }],
+      fetchImpl: async () => new Response("{}")
+    }),
+    (error) => error.code === "insecure_provider_url"
+  );
+});
+
+
+test("provider connectivity diagnostics can probe an opted-in internal Ollama endpoint", async () => {
+  let requestedUrl;
+  const result = await checkProviderConnection({
+    provider: {
+      id: "ollama",
+      configured: true,
+      protocol: "openai-compatible",
+      baseUrl: "http://ollama:11434/v1",
+      model: "qwen2.5:1.5b",
+      allowInternalHttp: true
+    },
+    fetchImpl: async (url, options) => {
+      requestedUrl = String(url);
+      assert.equal(options.headers.authorization, undefined);
+      return new Response(JSON.stringify({ data: [{ id: "qwen2.5:1.5b" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+  });
+  assert.equal(requestedUrl, "http://ollama:11434/v1/models");
+  assert.equal(result.ok, true);
+  assert.equal(result.modelListed, true);
+});
