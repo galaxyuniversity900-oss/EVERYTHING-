@@ -65,3 +65,48 @@ test("MCP client reads the matching JSON-RPC response from an SSE stream", async
   const result = await client.listTools();
   assert.equal(result.tools[0].name, "from_sse");
 });
+
+
+test("MCP client cancels oversized streamed JSON-RPC responses", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(700 * 1024));
+      controller.enqueue(new Uint8Array(400 * 1024));
+    },
+    cancel() { cancelled = true; }
+  });
+  const client = createMcpClient({
+    env: { MCP_SERVER_URL: "https://mcp.example.test/mcp" },
+    fetchImpl: async () => new Response(body, { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(client.listTools(), (error) => error.code === "mcp_response_too_large" && error.status === 502);
+  assert.equal(cancelled, true);
+});
+
+test("MCP client still parses valid chunked JSON-RPC responses", async () => {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('{"jsonrpc":"2.0","id":1,"result":'));
+      controller.enqueue(encoder.encode('{"protocolVersion":"2025-03-26","serverInfo":{"name":"chunked"}}}'));
+      controller.close();
+    }
+  });
+  let calls = 0;
+  const client = createMcpClient({
+    env: { MCP_SERVER_URL: "https://mcp.example.test/mcp" },
+    fetchImpl: async (_url, options) => {
+      const request = JSON.parse(options.body);
+      calls++;
+      if (request.method === "initialize") return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+      if (request.method === "notifications/initialized") return new Response(null, { status: 202 });
+      if (request.method === "tools/list") return new Response(JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [{ name: "chunked_tool" }] } }), { status: 200, headers: { "content-type": "application/json" } });
+      throw new Error("unexpected method");
+    }
+  });
+  const result = await client.listTools();
+  assert.equal(result.server.name, "chunked");
+  assert.equal(result.tools[0].name, "chunked_tool");
+  assert.equal(calls, 3);
+});
