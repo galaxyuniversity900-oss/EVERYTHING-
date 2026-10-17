@@ -26,6 +26,8 @@ jobs:
           node --check server.mjs
           node --check src/registry.mjs
           node --check src/ai/openai-compatible.mjs
+          node --check src/ai/provider-registry.mjs
+          node --check src/ai/router.mjs
           node --check src/runtime/capabilities.mjs
           node --check src/runtime/remote-provider.mjs
           node --check src/mcp/client.mjs
