@@ -34,6 +34,10 @@ The catalog is curated from the upstream [HeyPuter/everything repository](https:
 - Multi-user accounts/roles, server-side user storage, production-grade abuse controls, audit logs, or a managed production deployment. The optional access gate uses one shared password and in-memory sessions, not individual user accounts. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
 
+## Releases
+
+Tagged releases run the full unit-test suite, JavaScript syntax checks, and a container build before GitHub creates a release with generated notes and explicit operational limitations. Releases are not created from an unverified build.
+
 ## Requirements and local run
 
 Node.js 22.12 or newer.

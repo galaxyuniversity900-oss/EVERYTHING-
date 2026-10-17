@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "package.json"
+      - "server.mjs"
+      - "src/**"
+      - "public/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify release candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.12"
+      - name: Run tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.mjs
+          node --check src/registry.mjs
+          node --check src/security/auth.mjs
+          node --check src/ai/openai-compatible.mjs
+          node --check src/ai/provider-registry.mjs
+          node --check src/ai/provider-adapters.mjs
+          node --check src/ai/router.mjs
+          node --check src/runtime/capabilities.mjs
+          node --check src/runtime/remote-provider.mjs
+          node --check src/mcp/client.mjs
+          node --check public/app.js
+          node --check public/auth.js
+          node --check public/ai.js
+          node --check public/runtime.js
+          node --check public/device-profile.js
+          node --check public/mcp.js
+          node --check public/remote.js
+          node --check public/workspace.js
+          node --check public/workspace-core.js
+          node --check public/sw.js
+      - name: Build local container
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose build
+
+  publish:
+    name: Publish GitHub Release
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve release tag
+        id: release-tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then TAG="$INPUT_TAG"; else TAG="$REF_NAME"; fi
+          case "$TAG" in v*) ;; *) echo "Release tag must start with v" >&2; exit 1 ;; esac
+          git rev-parse --verify "refs/tags/$TAG" >/dev/null
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Create release notes and publish
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const generated = await github.rest.repos.generateReleaseNotes({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag
+            });
+            const body = [
+              generated.data.body,
+              "",
+              "## Scope and operational limits",
+              "- The workspace catalog links to upstream hosted applications; it does not host every listed application.",
+              "- Local inference requires a separately running compatible model endpoint; model weights are not bundled.",
+              "- Remote application sessions require a separately deployed provider implementing docs/remote-runtime-api.md.",
+              "- Review README.md and SECURITY.md before deployment. Do not expose the local server publicly without the documented controls."
+            ].join("\n");
+            const existing = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag
+            }).catch((error) => error.status === 404 ? null : Promise.reject(error));
+            if (existing) {
+              core.notice(`Release ${tag} already exists; leaving it unchanged.`);
+            } else {
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                name: tag,
+                body,
+                draft: false,
+                prerelease: /alpha|beta|rc/i.test(tag)
+              });
+            }
