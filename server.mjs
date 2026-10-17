@@ -91,7 +91,7 @@ function sameOriginIfProvided(req, res) {
     if (!origin) return true;
     const originUrl = new URL(origin);
     const originHostAllowed = loopbackHosts.has(originUrl.hostname) || (authManager.enabled && cookieSecure && trustedHosts.has(originUrl.hostname.toLowerCase()));
-    if (originUrl.host !== requestUrl.host || !originHostAllowed || (isTrustedPublic && originUrl.protocol !== "https:")) {
+    if (originUrl.host !== requestUrl.host || !originHostAllowed || (isLoopback && originUrl.protocol !== "http:") || (isTrustedPublic && originUrl.protocol !== "https:")) {
       sendJson(res, 403, { error: { code: "origin_not_allowed", message: "Cross-origin requests are not allowed." } });
       return false;
     }
