@@ -51,6 +51,8 @@ jobs:
           docker compose -f remote-worker/compose.yaml config --quiet
       - name: Build remote worker image
         run: docker compose -f remote-worker/compose.yaml build
+      - name: Build non-root HTTP fixture for live worker test
+        run: docker build -t everything-worker-smoke:ci -f remote-worker/test-fixtures/http-app/Dockerfile remote-worker/test-fixtures/http-app
       - name: Exercise a real Docker-backed remote session
         shell: bash
         run: |
@@ -63,7 +65,7 @@ jobs:
           export WORKER_MAX_SESSIONS="1"
           export WORKER_SESSION_TTL_MINUTES="10"
           export WORKER_IDLE_TIMEOUT_MINUTES="5"
-          export WORKER_APPS_JSON='[{"id":"nginx-smoke","name":"Nginx HTTP smoke test","image":"nginx:alpine","port":80,"memory":"256m","cpus":0.5,"pids":128}]'
+          export WORKER_APPS_JSON='[{"id":"http-smoke","name":"HTTP smoke test","image":"everything-worker-smoke:ci","port":8080,"memory":"256m","cpus":0.5,"pids":128}]'
           node remote-worker/server.mjs > /tmp/everything-worker.log 2>&1 &
           WORKER_PID=$!
           trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT
@@ -113,7 +115,7 @@ jobs:
             sleep 1
           done
           test "$PROXY_STATUS" = "200"
-          grep -qi "Welcome to nginx" /tmp/worker-proxy.html
+          grep -qi "EVERYTHING_WORKER_SMOKE_OK" /tmp/worker-proxy.html
 
           DELETE_STATUS=$(curl --silent --output /tmp/worker-delete.json --write-out '%{http_code}' \
             -X DELETE "http://127.0.0.1:18788/v1/sessions/$SESSION_ID" \
