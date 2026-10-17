@@ -22,6 +22,8 @@ Pre-pull the approved images before launching the worker. This avoids image-pull
 
 An administrator can add `"gpus": 1` (or an integer from `1` to `4`) to an approved app entry in `WORKER_APPS_JSON`. The worker then adds Docker's `--gpus N` option only for that app. The default is `0`, so existing app configurations remain CPU-only.
 
+The optional `shmSize` field controls container shared memory from `64m` to `2g`; it defaults to `256m` and can help browser and ML applications that use shared memory heavily.
+
 GPU allocation requires a Linux host with compatible NVIDIA drivers and the NVIDIA Container Toolkit configured for Docker. It does not install drivers or the toolkit, guarantee that an image supports CUDA, or apply to Android/Termux and Docker Desktop. Keep GPU access limited to reviewed images because GPU-enabled containers still share the host's hardware and driver stack.
 
 ## Containerized worker setup (dedicated Linux host)
@@ -75,7 +77,7 @@ WORKER_SESSION_BASE_URL=https://sessions.example.com/
 WORKER_MAX_SESSIONS=2
 WORKER_SESSION_TTL_MINUTES=60
 WORKER_IDLE_TIMEOUT_MINUTES=15
-WORKER_APPS_JSON='[{"id":"linux-desktop","name":"Linux Desktop","description":"A remote Linux desktop; installed programs depend on this image.","image":"lscr.io/linuxserver/webtop:ubuntu-xfce","port":3000,"memory":"2g","cpus":1,"pids":256,"capabilities":["CHOWN","DAC_OVERRIDE","FOWNER","FSETID","KILL","SETGID","SETUID","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","MKNOD","AUDIT_WRITE"],"env":{"PUID":"1000","PGID":"1000","TZ":"Etc/UTC","CUSTOM_USER":"desktop","PASSWORD":"replace-with-a-strong-container-password"}}]'
+WORKER_APPS_JSON='[{"id":"linux-desktop","name":"Linux Desktop","description":"A remote Linux desktop; installed programs depend on this image.","image":"lscr.io/linuxserver/webtop:ubuntu-xfce","port":3000,"memory":"2g","shmSize":"512m","cpus":1,"pids":256,"capabilities":["CHOWN","DAC_OVERRIDE","FOWNER","FSETID","KILL","SETGID","SETUID","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","MKNOD","AUDIT_WRITE"],"env":{"PUID":"1000","PGID":"1000","TZ":"Etc/UTC","CUSTOM_USER":"desktop","PASSWORD":"replace-with-a-strong-container-password"}}]'
 ```
 
 Use a custom, pinned image if you need Blender, LibreOffice, development tools, or other desktop applications preinstalled. Do not assume every program is present in the example image. App IDs, image names, ports, resource limits, environment variables, and the restricted Linux capabilities are administrator-controlled; API callers can only request an advertised app ID.
