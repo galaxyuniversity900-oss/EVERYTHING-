@@ -24,6 +24,7 @@ function renderApps(apps) {
     if (app.resources) {
       const parts = [];
       if (app.resources.memory) parts.push(`RAM ${app.resources.memory}`);
+      if (app.resources.shmSize) parts.push(`SHM ${app.resources.shmSize}`);
       if (Number.isFinite(app.resources.cpus)) parts.push(`CPU ${app.resources.cpus}`);
       if (Number.isFinite(app.resources.gpus)) parts.push(`GPU ${app.resources.gpus}`);
       if (Number.isFinite(app.resources.pids)) parts.push(`PIDs ${app.resources.pids}`);
