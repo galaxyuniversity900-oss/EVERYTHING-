@@ -34,7 +34,7 @@ async function listen(worker) {
   return `http://127.0.0.1:${worker.server.address().port}`;
 }
 
-function requestSessionHost(base, host) {
+function requestSessionHost(base, host, forwardedProto = "https") {
   const url = new URL(base);
   return new Promise((resolve, reject) => {
     const request = httpRequest({
@@ -42,7 +42,7 @@ function requestSessionHost(base, host) {
       port: Number(url.port),
       path: "/",
       method: "GET",
-      headers: { host, "x-forwarded-proto": "https" }
+      headers: { host, "x-forwarded-proto": forwardedProto }
     }, (response) => {
       response.resume();
       resolve(response.statusCode);
@@ -74,6 +74,59 @@ test("worker requires bearer authentication for capabilities", async () => {
     assert.equal(response.status, 401);
     const health = await fetch(`${base}/api/health`);
     assert.equal(health.status, 200);
+  } finally { await worker.close(); }
+});
+
+test("worker rejects untrusted API Host headers", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const url = new URL(base);
+    const status = await new Promise((resolve, reject) => {
+      const request = httpRequest({
+        hostname: url.hostname,
+        port: Number(url.port),
+        path: "/api/health",
+        method: "GET",
+        headers: { host: "attacker.example", "x-forwarded-proto": "https" }
+      }, (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { body += chunk; });
+        response.on("end", () => {
+          try {
+            assert.equal(JSON.parse(body).error.code, "untrusted_host");
+            resolve(response.statusCode);
+          } catch (error) { reject(error); }
+        });
+      });
+      request.on("error", reject);
+      request.end();
+    });
+    assert.equal(status, 403);
+  } finally { await worker.close(); }
+});
+
+test("session proxy requires the correct view token and forwarded HTTPS", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    });
+    assert.equal(response.status, 201);
+    const session = await response.json();
+    const sessionHost = new URL(session.url).host;
+    const [label, ...domain] = sessionHost.split(".");
+    const [id, viewToken] = label.split("-");
+    assert.match(id, /^[a-f0-9]{16}$/);
+    assert.match(viewToken, /^[a-f0-9]{32}$/);
+    const wrongTokenHost = `${id}-${"0".repeat(32)}.${domain.join(".")}`;
+    assert.equal(await requestSessionHost(base, wrongTokenHost), 404);
+    assert.equal(await requestSessionHost(base, sessionHost, "http"), 404);
+    assert.equal(worker.sessions.size, 1);
   } finally { await worker.close(); }
 });
 
