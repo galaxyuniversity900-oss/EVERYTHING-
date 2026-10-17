@@ -51,6 +51,82 @@ jobs:
           docker compose -f remote-worker/compose.yaml config --quiet
       - name: Build remote worker image
         run: docker compose -f remote-worker/compose.yaml build
+      - name: Build non-root HTTP fixture for live worker test
+        run: docker build -t everything-worker-smoke:ci -f remote-worker/test-fixtures/http-app/Dockerfile remote-worker/test-fixtures/http-app
+      - name: Exercise a real Docker-backed remote session
+        shell: bash
+        run: |
+          set -euo pipefail
+          export WORKER_TOKEN="ci-worker-token-with-more-than-thirty-two-bytes"
+          export WORKER_HOST="127.0.0.1"
+          export WORKER_PORT="18788"
+          export WORKER_PUBLIC_BASE_URL="http://127.0.0.1:18788/"
+          export WORKER_SESSION_BASE_URL="https://sessions.example.test/"
+          export WORKER_MAX_SESSIONS="1"
+          export WORKER_SESSION_TTL_MINUTES="10"
+          export WORKER_IDLE_TIMEOUT_MINUTES="5"
+          export WORKER_APPS_JSON='[{"id":"http-smoke","name":"HTTP smoke test","image":"everything-worker-smoke:ci","port":8080,"memory":"256m","cpus":0.5,"pids":128}]'
+          node remote-worker/server.mjs > /tmp/everything-worker.log 2>&1 &
+          WORKER_PID=$!
+          trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18788/api/health > /tmp/worker-health.json; then break; fi
+            sleep 2
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            if (JSON.parse(fs.readFileSync("/tmp/worker-health.json", "utf8")).status !== "ok") process.exit(1);
+          '
+
+          curl --fail --silent http://127.0.0.1:18788/v1/capabilities \
+            -H "Authorization: Bearer $WORKER_TOKEN" > /tmp/worker-capabilities.json
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const data = JSON.parse(fs.readFileSync("/tmp/worker-capabilities.json", "utf8"));
+            if (!Array.isArray(data.apps) || !data.apps.some((app) => app.id === "http-smoke")) process.exit(1);
+          '
+
+          CREATE_STATUS=$(curl --silent --output /tmp/worker-session.json --write-out '%{http_code}' \
+            --max-time 120 \
+            -X POST http://127.0.0.1:18788/v1/sessions \
+            -H "Authorization: Bearer $WORKER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"appId":"http-smoke","client":"container-ci"}')
+          test "$CREATE_STATUS" = "201"
+          SESSION_ID=$(node --input-type=module -e '
+            import fs from "node:fs";
+            const data = JSON.parse(fs.readFileSync("/tmp/worker-session.json", "utf8"));
+            if (!/^[a-f0-9]{16}$/.test(data.id) || !data.url) process.exit(1);
+            process.stdout.write(data.id);
+          ')
+          SESSION_HOST=$(node --input-type=module -e '
+            import fs from "node:fs";
+            process.stdout.write(new URL(JSON.parse(fs.readFileSync("/tmp/worker-session.json", "utf8")).url).host);
+          ')
+
+          PROXY_STATUS=000
+          for attempt in $(seq 1 30); do
+            PROXY_STATUS=$(curl --silent --output /tmp/worker-proxy.html --write-out '%{http_code}' \
+              -H "Host: $SESSION_HOST" \
+              -H 'X-Forwarded-Proto: https' \
+              http://127.0.0.1:18788/ || true)
+            if [ "$PROXY_STATUS" = "200" ]; then break; fi
+            sleep 1
+          done
+          test "$PROXY_STATUS" = "200"
+          grep -qi "EVERYTHING_WORKER_SMOKE_OK" /tmp/worker-proxy.html
+
+          DELETE_STATUS=$(curl --silent --output /tmp/worker-delete.json --write-out '%{http_code}' \
+            -X DELETE "http://127.0.0.1:18788/v1/sessions/$SESSION_ID" \
+            -H "Authorization: Bearer $WORKER_TOKEN")
+          test "$DELETE_STATUS" = "200"
+          test -z "$(docker ps -a --filter "name=everything-$SESSION_ID" --format '{{.ID}}')"
+
+      - name: Show remote worker logs on failure
+        if: failure()
+        run: cat /tmp/everything-worker.log || true
+
       - name: Start restricted local container
         run: docker compose up -d
       - name: Verify HTTP health and app catalog
