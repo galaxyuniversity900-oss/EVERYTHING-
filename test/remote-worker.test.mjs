@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { request as httpRequest } from "node:http";
-import { createRemoteWorker } from "../remote-worker/server.mjs";
+import { createServer as createTcpServer } from "node:net";
+import { createRemoteWorker, waitForTcpPort } from "../remote-worker/server.mjs";
 
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
@@ -353,4 +354,22 @@ test("worker clamps the configured application startup timeout", async () => {
   });
   assert.equal(worker.config.startupTimeoutMs, 60_000);
   await worker.close();
+});
+
+test("TCP readiness probe detects a listening app port", async () => {
+  const server = createTcpServer((socket) => socket.end());
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    assert.equal(await waitForTcpPort(server.address().port, { timeoutMs: 1000 }), true);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("TCP readiness probe times out when no app port is listening", async () => {
+  const server = createTcpServer();
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+  await new Promise((resolve) => server.close(resolve));
+  assert.equal(await waitForTcpPort(port, { timeoutMs: 100 }), false);
 });
