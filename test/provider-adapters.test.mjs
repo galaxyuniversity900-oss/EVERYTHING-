@@ -48,3 +48,64 @@ test("native provider adapters reject missing credentials", async () => {
     (error) => error.code === "provider_not_configured"
   );
 });
+
+
+import { checkProviderConnection } from "../src/ai/provider-adapters.mjs";
+
+test("OpenAI-compatible connection check uses the models endpoint without generating tokens", async () => {
+  let requestedUrl;
+  let auth;
+  const result = await checkProviderConnection({
+    provider: { id: "openai", configured: true, protocol: "openai-compatible", baseUrl: "https://api.openai.com/v1", model: "model-x", apiKey: "secret" },
+    fetchImpl: async (url, options) => {
+      requestedUrl = String(url);
+      auth = options.headers.authorization;
+      return new Response(JSON.stringify({ data: [{ id: "model-x" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+  });
+  assert.equal(requestedUrl, "https://api.openai.com/v1/models");
+  assert.equal(auth, "Bearer secret");
+  assert.equal(result.ok, true);
+  assert.equal(result.modelListed, true);
+  assert.equal(Object.hasOwn(result, "apiKey"), false);
+});
+
+test("Anthropic and Gemini connection checks use their native auth headers", async () => {
+  const calls = [];
+  const providers = [
+    { id: "claude", configured: true, protocol: "anthropic", baseUrl: "https://api.anthropic.com/v1", model: "claude-x", apiKey: "anthropic-secret" },
+    { id: "gemini", configured: true, protocol: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-x", apiKey: "gemini-secret" }
+  ];
+  const payloads = [
+    { data: [{ id: "claude-x" }] },
+    { models: [{ name: "models/gemini-x" }] }
+  ];
+  for (let index = 0; index < providers.length; index += 1) {
+    const result = await checkProviderConnection({
+      provider: providers[index],
+      fetchImpl: async (url, options) => {
+        calls.push({ url: String(url), headers: options.headers });
+        return new Response(JSON.stringify(payloads[index]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+    });
+    assert.equal(result.modelListed, true);
+  }
+  assert.equal(calls[0].url, "https://api.anthropic.com/v1/models");
+  assert.equal(calls[0].headers["x-api-key"], "anthropic-secret");
+  assert.equal(calls[1].url, "https://generativelanguage.googleapis.com/v1beta/models");
+  assert.equal(calls[1].headers["x-goog-api-key"], "gemini-secret");
+});
+
+test("provider connection check rejects unsafe URLs and hides transport details", async () => {
+  await assert.rejects(
+    checkProviderConnection({ provider: { configured: true, protocol: "openai-compatible", baseUrl: "http://example.test/v1", model: "x", apiKey: "secret" } }),
+    (error) => error.code === "unsafe_provider_url"
+  );
+  await assert.rejects(
+    checkProviderConnection({
+      provider: { configured: true, protocol: "openai-compatible", baseUrl: "https://api.example.test/v1", model: "x", apiKey: "secret" },
+      fetchImpl: async () => { throw new TypeError("internal socket detail"); }
+    }),
+    (error) => error.code === "provider_connection_failed" && !error.message.includes("internal socket detail")
+  );
+});
