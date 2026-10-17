@@ -10,6 +10,7 @@ on:
       - "server.mjs"
       - "src/**"
       - "public/**"
+      - "remote-worker/**"
       - ".github/workflows/container.yml"
   pull_request:
     paths:
@@ -36,6 +37,14 @@ jobs:
         run: docker compose config --quiet
       - name: Build image
         run: docker compose build
+      - name: Prepare remote worker environment
+        run: cp remote-worker/.env.example remote-worker/.env
+      - name: Validate remote worker Compose configuration
+        run: |
+          export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+          docker compose -f remote-worker/compose.yaml config --quiet
+      - name: Build remote worker image
+        run: docker compose -f remote-worker/compose.yaml build
       - name: Start restricted local container
         run: docker compose up -d
       - name: Verify HTTP health and app catalog
