@@ -8,7 +8,7 @@ function configuredUrl(env) {
     throw Object.assign(new Error("MCP_SERVER_URL is invalid"), { code: "invalid_mcp_url", status: 500 });
   }
   const local = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname);
-  if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) || url.username || url.password || url.hash) {
+  if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) || url.username || url.password || url.hash || url.search) {
     throw Object.assign(new Error("MCP URL must use HTTPS (HTTP is allowed only for localhost) and cannot include credentials or fragments"), { code: "unsafe_mcp_url", status: 500 });
   }
   return url;
@@ -141,7 +141,7 @@ export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutM
   }
 
   async function callTool(name, args = {}) {
-    if (typeof name !== "string" || !/^[a-zA-Z0-9_.-]{1,128}$/.test(name)) {
+    if (typeof name !== "string" || !name.trim() || name.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(name)) {
       throw Object.assign(new Error("Tool name is invalid"), { code: "invalid_tool_name", status: 400 });
     }
     if (!args || typeof args !== "object" || Array.isArray(args)) {
