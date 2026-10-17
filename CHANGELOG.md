@@ -2,6 +2,13 @@
 
 All notable changes to EVERYTHING- are recorded here.
 
+## 0.5.0 — Access gate
+
+- Added an optional shared-password sign-in overlay and logout flow.
+- Added HttpOnly, SameSite=Strict in-memory sessions with a 12-hour expiry.
+- Protected API routes when the access gate is enabled and added login rate limiting.
+- Added trusted-host checks for HTTPS reverse-proxy deployments.
+
 ## 0.4.0 — Local workspace
 
 - Added browser-local notes, AI prompts, and text snippets using IndexedDB.
