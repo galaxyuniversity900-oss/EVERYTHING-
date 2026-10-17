@@ -6,6 +6,7 @@ const compose = await readFile(new URL("../compose.yaml", import.meta.url), "utf
 const env = await readFile(new URL("../.env.example", import.meta.url), "utf8");
 const registry = await readFile(new URL("../src/ai/provider-registry.mjs", import.meta.url), "utf8");
 const gpu = await readFile(new URL("../compose.gpu.yaml", import.meta.url), "utf8");
+const workflow = await readFile(new URL("../.github/workflows/ollama-e2e.yml", import.meta.url), "utf8");
 
 test("Ollama is opt-in, private-network-only, persistent, and resource-capped", () => {
   const start = compose.indexOf("\n  ollama:\n");
@@ -41,4 +42,15 @@ test("NVIDIA acceleration is a separate opt-in overlay on the Ollama service onl
   assert.match(gpu, /count: 1/);
   assert.match(gpu, /capabilities: \[gpu\]/);
   assert.doesNotMatch(gpu, /everything:/);
+});
+
+
+test("live Ollama test is manual and scheduled, and verifies actual model output", () => {
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /OLLAMA_MODEL=qwen2\.5:0\.5b/);
+  assert.match(workflow, /\/api\/ai\/providers\/check/);
+  assert.match(workflow, /\/api\/ai\/chat/);
+  assert.match(workflow, /typeof d\.content !== "string"/);
+  assert.match(workflow, /docker compose --profile local-ai down/);
 });
