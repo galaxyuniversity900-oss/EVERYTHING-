@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — Optional self-hosted LLM runtime
+
+- Added an opt-in Ollama Compose profile with persistent model storage, an internal-only API, a one-time model pull, and RAM/CPU bounds.
+- Added an explicit internal-HTTP opt-in limited to single-label OpenAI-compatible service names; public HTTP endpoints remain rejected.
+- Added provider-registry, chat-transport, and connection-check tests for internal model services.
+- Kept local inference disabled by default; model weights are downloaded only after the operator activates the profile.
+
 ## 0.8.0 — Easier remote worker deployment
 
 - Added a minimal non-root Docker CLI image and Linux Compose deployment for the optional remote worker.
