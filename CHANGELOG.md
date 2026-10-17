@@ -1,5 +1,12 @@
 # Changelog
 
+## Device-aware runtime profile
+
+- Added browser-local estimates for memory, CPU concurrency, WebGPU exposure, and network constraints.
+- Runtime guidance now favors configured remote execution for constrained devices, and warns against large local models when no worker is configured.
+- Added unit tests and included the new module in the PWA cache and source-size budget.
+
+
 ## Security hardening — auth-aware offline cache
 
 - The service worker records whether the server requires authentication without caching the auth response.
