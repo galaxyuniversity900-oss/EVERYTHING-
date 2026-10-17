@@ -1,5 +1,13 @@
 # Changelog
 
+## Security hardening — auth-aware offline cache
+
+- The service worker records whether the server requires authentication without caching the auth response.
+- Offline catalog fallback is denied until authentication is confirmed disabled.
+- Unauthorized catalog responses clear matching cached catalog entries.
+- Added regression tests and included sign-in assets in the browser source-size budget.
+
+
 ## 0.5.0 — Verified application catalog
 
 - Expanded the catalog to 50 upstream app entries across office, collaboration, creative, engineering, productivity, finance, business, developer, and games categories.
