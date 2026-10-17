@@ -13,7 +13,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Browser capability assessment for WASM and WebGPU.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
 - Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
-- Automated tests and GitHub Actions HTTP smoke tests.
+- Automated tests and GitHub Actions HTTP smoke tests, including a lightweight source-asset budget check.
 - Configuration, security, architecture, and remote provider API documentation.
 
 ## Not included yet
