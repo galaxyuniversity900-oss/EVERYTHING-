@@ -13,11 +13,15 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Installable PWA shell with versioned offline caching; API responses for AI, MCP, and remote sessions are never cached.
 - Browser-local notes, reusable prompts, and text snippets stored in IndexedDB, with search, edit/delete, JSON import/export, and a deliberate handoff into AI input. Local items are not synced or uploaded automatically.
 - Opt-in OpenAI-compatible chat endpoint. Compatible localhost inference servers can be used without a key; cloud providers require a server-side key.
-- Browser capability assessment for WASM and WebGPU.
+- Browser capability assessment for WASM/WebGPU plus approximate device-memory, CPU, and network constraints to recommend browser-native versus configured remote execution.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
 - Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
 - Automated tests and GitHub Actions HTTP smoke tests, including a lightweight source-asset budget check.
 - Configuration, security, architecture, and remote provider API documentation.
+
+## Low-resource behavior
+
+The workspace checks browser-reported device memory (when available), logical CPU count, WebGPU exposure, network type, and data-saver preference. These are approximate signals, not benchmarks. Constrained devices are advised to avoid large local LLMs and parallel workloads; a configured remote worker is preferred only when available. If no worker is configured, the app recommends lightweight browser tools and a configured AI API. No model weights are downloaded automatically.
 
 ## Catalog provenance and limits
 
