@@ -57,15 +57,13 @@ async function getAllItems() {
 async function putItem(item) {
   const tx = db.transaction(storeName, "readwrite");
   const done = transactionComplete(tx);
-  await requestResult(tx.objectStore(storeName).put(item));
-  await done;
+  await Promise.all([requestResult(tx.objectStore(storeName).put(item)), done]);
 }
 
 async function deleteItem(id) {
   const tx = db.transaction(storeName, "readwrite");
   const done = transactionComplete(tx);
-  await requestResult(tx.objectStore(storeName).delete(id));
-  await done;
+  await Promise.all([requestResult(tx.objectStore(storeName).delete(id)), done]);
 }
 
 function resetEditor() {
@@ -203,8 +201,8 @@ importInput.addEventListener("change", async () => {
   try {
     if (file.size > 2 * 1024 * 1024) throw new Error("Import file must be smaller than 2 MiB.");
     const parsed = JSON.parse(await file.text());
-    const imported = validateWorkspaceImport(parsed);
     const existing = await getAllItems();
+    const imported = validateWorkspaceImport(parsed, { existingIds: new Set(existing.map((item) => item.id)) });
     const combined = new Map(existing.map((item) => [item.id, item]));
     for (const item of imported) combined.set(item.id, item);
     if (combined.size > MAX_WORKSPACE_ITEMS) throw new Error(`Import would exceed ${MAX_WORKSPACE_ITEMS} local items. Export and remove some items first.`);
