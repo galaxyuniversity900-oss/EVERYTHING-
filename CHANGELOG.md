@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — Easier remote worker deployment
+
+- Added a minimal non-root Docker CLI image and Linux Compose deployment for the optional remote worker.
+- Added a separate worker environment template and documented Docker socket privilege, loopback-only access, group-ID setup, and the dedicated-host requirement.
+- Extended container CI to validate the worker Compose configuration and build both platform images.
+- Fixed a race that could launch more remote sessions than the configured concurrency limit; added regression coverage.
+
 All notable changes to EVERYTHING- are recorded here.
 
 ## 0.7.0 — AI provider diagnostics
