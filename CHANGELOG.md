@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0 — Bounded AI inference concurrency
+
+- Added a configurable in-flight AI request limit to protect constrained CPU and memory resources.
+- Added a clear retryable `429 ai_busy` response when all inference slots are occupied.
+- Ensured each lease is released after success or failure and added regression tests for capacity, idempotent release, and bounded settings.
+- Documented a single-request default recommendation for CPU-only Ollama hosts and wired syntax checks for the new module.
+
 ## 0.11.0 — Live local-model smoke test
 
 - Added a manual and weekly GitHub Actions workflow that pulls a small Ollama model and makes a real completion through the app gateway.
