@@ -18,6 +18,44 @@ Sessions are ephemeral. Containers are removed on close, idle timeout, absolute 
 
 Pre-pull the approved images before launching the worker. This avoids image-pull timeouts during session creation.
 
+## Containerized worker setup (dedicated Linux host)
+
+The optional Compose deployment removes the need to install Node.js manually on the worker host. It still requires Docker Engine, a Linux host, HTTPS reverse-proxy/DNS configuration, and reviewed container images.
+
+**Critical trust boundary:** the worker uses the host Docker socket. A process with Docker socket access can effectively control the host, even though this worker drops its own Linux capabilities and runs as the non-root `node` user. Do not run it on a machine containing sensitive workloads, do not offer arbitrary images/commands, and do not treat it as a hostile-code sandbox. The `remote-worker/compose.yaml` uses host networking so the worker can remain bound to host loopback and reach the app ports it creates; this is intended for Linux servers, not Android/Termux or Docker Desktop.
+
+From the repository root on the dedicated Linux worker host:
+
+```sh
+cp remote-worker/.env.example remote-worker/.env
+# Edit remote-worker/.env: set a unique WORKER_TOKEN, real DNS names,
+# a strong desktop password, and reviewed/pinned app images.
+export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+docker compose -f remote-worker/compose.yaml config --quiet
+docker compose -f remote-worker/compose.yaml up --build -d
+docker compose -f remote-worker/compose.yaml ps
+curl --fail http://127.0.0.1:8788/api/health
+```
+
+The `DOCKER_GID` value must match the numeric group ID of the host's `/var/run/docker.sock`; the Compose service gives that group to the non-root worker process so it can use the Docker CLI. Never copy the example token or password to a live host. Keep `remote-worker/.env` private.
+
+Configure the main EVERYTHING- server separately in its own root `.env`:
+
+```env
+REMOTE_RUNTIME_URL=https://runtime.example.com/
+REMOTE_RUNTIME_TOKEN=the-same-value-as-WORKER_TOKEN
+```
+
+Then start/restart the main workspace. Complete the API and wildcard session reverse-proxy setup below before trying to use sessions from outside the worker host. Verify the worker is available on host loopback only; do not publish port 8788 directly on a public interface.
+
+To stop the worker:
+
+```sh
+docker compose -f remote-worker/compose.yaml down
+```
+
+The worker container is rebuilt from this repository's local source, not a public image registry. Its app containers are still created on the host Docker daemon and must be limited to administrator-approved images.
+
 ## Configuration
 
 Add the following to a protected environment file on the worker host. Generate a new token with `openssl rand -hex 32` and replace every example value.
