@@ -1,6 +1,14 @@
 name: Ollama End-to-End Smoke Test
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/ollama-e2e.yml"
+      - "compose.yaml"
+      - "compose.gpu.yaml"
+      - "server.mjs"
+      - "src/ai/**"
+      - "test/ollama-compose.test.mjs"
   workflow_dispatch:
   schedule:
     - cron: "30 4 * * 0"
