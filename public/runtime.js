@@ -1,23 +1,49 @@
+import { inspectDeviceCapabilities, recommendRuntime, describeDeviceProfile } from "./device-profile.js";
+
 const modeLabel = document.querySelector("#runtime-mode");
 const details = document.querySelector("#runtime-details");
 
 async function reportCapabilities() {
-  const wasm = typeof WebAssembly === "object";
-  const webgpu = Boolean(navigator.gpu);
-  const network = navigator.onLine !== false;
-  const params = new URLSearchParams({ wasm: wasm ? "1" : "0", webgpu: webgpu ? "1" : "0", network: network ? "1" : "0" });
+  const profile = inspectDeviceCapabilities();
+  let server = { remoteRuntimeConfigured: false, recommendedMode: "browser" };
+  let serverReachable = false;
   try {
-    const response = await fetch(`/api/runtime/capabilities?${params}`);
+    const params = new URLSearchParams({
+      wasm: profile.wasmAvailable ? "1" : "0",
+      webgpu: profile.webgpuAvailable ? "1" : "0",
+      network: profile.online ? "1" : "0"
+    });
+    const response = await fetch(`/api/runtime/capabilities?${params}`, { cache: "no-store" });
     if (!response.ok) throw new Error("Capability endpoint unavailable");
-    const data = await response.json();
-    const labels = { browser: "Browser-native execution", wasm: "WebAssembly-capable browser", webgpu: "WebGPU-capable browser", remote: "Configured remote runtime" };
-    modeLabel.textContent = labels[data.recommendedMode] || "Browser-native execution";
-    const available = data.modes.filter((item) => item.available).map((item) => item.mode.toUpperCase());
-    const remote = data.remoteRuntimeConfigured ? "Remote session adapter is configured." : "Remote session adapter exists, but no runtime service is configured.";
-    details.textContent = `Detected: ${available.join(", ")}. ${remote} Browser feature detection does not prove an app or model will fit available memory or GPU.`;
+    server = await response.json();
+    serverReachable = true;
   } catch {
-    modeLabel.textContent = "Capability check unavailable";
-    details.textContent = "The local server did not return capability information.";
+    serverReachable = false;
   }
+
+  const selectedMode = recommendRuntime(profile, server);
+  const labels = {
+    browser: profile.constrained ? "Low-resource browser mode" : "Browser-native execution",
+    wasm: "WebAssembly-capable browser",
+    webgpu: "WebGPU-capable browser",
+    remote: "Configured remote runtime"
+  };
+  modeLabel.textContent = labels[selectedMode] || "Browser-native execution";
+
+  const notes = [];
+  if (serverReachable) {
+    const available = (server.modes || []).filter((item) => item.available).map((item) => item.mode.toUpperCase());
+    notes.push(`Runtime capabilities: ${available.join(", ") || "basic browser mode"}`);
+    notes.push(server.remoteRuntimeConfigured ? "Remote session adapter is configured." : "Remote adapter exists, but no remote worker is configured.");
+  } else {
+    notes.push("Server capability API is unavailable; showing browser-local estimates only.");
+  }
+  notes.push(describeDeviceProfile(profile, server));
+  notes.push("Browser hardware signals are approximate and do not guarantee that an app or model fits available memory or GPU.");
+  details.textContent = notes.join(" ");
 }
+
 reportCapabilities();
+window.addEventListener("online", reportCapabilities);
+window.addEventListener("offline", reportCapabilities);
+navigator.connection?.addEventListener?.("change", reportCapabilities);

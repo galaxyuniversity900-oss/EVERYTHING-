@@ -1,8 +1,8 @@
-const CACHE_NAME = "everything-shell-v4";
+const CACHE_NAME = "everything-shell-v5";
 const AUTH_MODE_KEY = "/__everything_auth_mode__";
 const SHELL_ASSETS = [
   "/", "/styles.css", "/auth.css", "/ai.css", "/mcp.css", "/remote.css",
-  "/app.js", "/auth.js", "/ai.js", "/runtime.js", "/mcp.js", "/remote.js", "/workspace.js", "/workspace-core.js", "/workspace.css",
+  "/app.js", "/auth.js", "/ai.js", "/runtime.js", "/device-profile.js", "/mcp.js", "/remote.js", "/workspace.js", "/workspace-core.js", "/workspace.css",
   "/manifest.webmanifest", "/icon.svg"
 ];
 
