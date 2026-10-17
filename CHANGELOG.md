@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0 — Live local-model smoke test
+
+- Added a manual and weekly GitHub Actions workflow that pulls a small Ollama model and makes a real completion through the app gateway.
+- The workflow verifies model visibility, provider connectivity, successful chat output, and cleans up the temporary services.
+- CI unit tests assert that the end-to-end workflow remains configured.
+
 ## 0.10.0 — Optional NVIDIA inference acceleration
 
 - Added a separate Compose override that requests one NVIDIA GPU for the optional Ollama service.

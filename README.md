@@ -63,6 +63,8 @@ docker compose -f compose.yaml -f compose.gpu.yaml --profile local-ai up -d
 
 The override requests one NVIDIA GPU for Ollama only. It does not install GPU drivers or the Container Toolkit, and the CPU-only profile remains the default. The GPU override is not for Android/Termux or Docker Desktop; verify your NVIDIA container runtime before using it.
 
+The `Ollama End-to-End Smoke Test` workflow can also be started manually in GitHub Actions and runs weekly. It pulls a small test model, checks the provider endpoint, and requests a real completion. This adds a live integration check beyond the default unit tests and Compose configuration checks.
+
 ## Catalog provenance and limits
 
 The catalog is curated from the upstream [HeyPuter/everything repository](https://github.com/HeyPuter/everything), whose README describes the project as MIT-licensed. Each entry links back to its upstream source. The `hosted` flag is set only when the upstream README provides a demo link without a “Demo URL not yet provided” warning. A hosted link is an external service and is not embedded or self-hosted by EVERYTHING-. Upstream links and availability may change; re-check the source before relying on a demo.
