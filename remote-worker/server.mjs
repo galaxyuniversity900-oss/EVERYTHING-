@@ -8,6 +8,7 @@ const execFileDefault = promisify(execFileCallback);
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_API_RESPONSE_BYTES = 256 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const ALLOWED_CAPABILITIES = new Set(["CHOWN", "DAC_OVERRIDE", "FOWNER", "FSETID", "KILL", "SETGID", "SETUID", "SETPCAP", "NET_BIND_SERVICE", "SYS_CHROOT", "MKNOD", "AUDIT_WRITE"]);
 
 function httpError(status, code, message) {
   const error = new Error(message);
@@ -31,7 +32,7 @@ function readWorkerConfig(env) {
   const token = env.WORKER_TOKEN || "";
   if (Buffer.byteLength(token, "utf8") < 32) throw new Error("WORKER_TOKEN must contain at least 32 bytes");
   const publicBase = parseBase(env.WORKER_PUBLIC_BASE_URL || "", "WORKER_PUBLIC_BASE_URL", true);
-  const sessionBase = parseBase(env.WORKER_SESSION_BASE_URL || "", "WORKER_SESSION_BASE_URL", true);
+  const sessionBase = parseBase(env.WORKER_SESSION_BASE_URL || "", "WORKER_SESSION_BASE_URL");
   let rawApps;
   try { rawApps = JSON.parse(env.WORKER_APPS_JSON || "[]"); }
   catch { throw new Error("WORKER_APPS_JSON must be valid JSON"); }
@@ -50,6 +51,10 @@ function readWorkerConfig(env) {
     if (envEntries.length > 30 || envEntries.some(([key, value]) => !/^[A-Z_][A-Z0-9_]{0,63}$/.test(key) || typeof value !== "string" || value.length > 512 || /[\u0000\r\n]/.test(value))) {
       throw new Error(`App ${app.id} has invalid environment settings`);
     }
+    const capabilities = Array.isArray(app.capabilities) ? app.capabilities : [];
+    if (capabilities.length > 12 || capabilities.some((capability) => typeof capability !== "string" || !ALLOWED_CAPABILITIES.has(capability))) {
+      throw new Error(`App ${app.id} requests an unsupported Linux capability`);
+    }
     seen.add(app.id);
     return {
       id: app.id,
@@ -60,6 +65,7 @@ function readWorkerConfig(env) {
       memory,
       cpus,
       pids,
+      capabilities,
       env: Object.fromEntries(envEntries)
     };
   });
@@ -208,9 +214,11 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
       "--pids-limit", String(app.pids),
       "--security-opt", "no-new-privileges:true",
       "--cap-drop", "ALL",
+      "--shm-size", "256m",
       "--publish", `127.0.0.1::${app.port}/tcp`,
       "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m"
     ];
+    for (const capability of app.capabilities) args.push("--cap-add", capability);
     for (const [key, value] of Object.entries(app.env)) args.push("--env", `${key}=${value}`);
     args.push(app.image);
     let started = false;
