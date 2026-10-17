@@ -10,13 +10,14 @@ test("MCP client rejects cleartext non-local URLs", () => {
   assert.throws(() => createMcpClient({ env: { MCP_SERVER_URL: "http://example.com/mcp" } }), (error) => error.code === "unsafe_mcp_url");
 });
 
-test("MCP client rejects URL-embedded credentials", () => {
+test("MCP client rejects URL-embedded credentials and query tokens", () => {
   assert.throws(() => createMcpClient({ env: { MCP_SERVER_URL: "https://user:pass@example.com/mcp" } }), (error) => error.code === "unsafe_mcp_url");
+  assert.throws(() => createMcpClient({ env: { MCP_SERVER_URL: "https://example.com/mcp?token=inline" } }), (error) => error.code === "unsafe_mcp_url");
 });
 
 test("MCP tool names and argument types are validated before network calls", async () => {
   const client = createMcpClient({ env: { MCP_SERVER_URL: "https://mcp.example.test/mcp" }, fetchImpl: async () => { throw new Error("should not fetch"); } });
-  await assert.rejects(client.callTool("bad tool", {}), (error) => error.code === "invalid_tool_name");
+  await assert.rejects(client.callTool("", {}), (error) => error.code === "invalid_tool_name");
   await assert.rejects(client.callTool("valid_tool", []), (error) => error.code === "invalid_tool_arguments");
 });
 
