@@ -1,0 +1,97 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createRemoteWorker } from "../remote-worker/server.mjs";
+
+const token = "worker-token-value-that-is-at-least-32-bytes-long";
+const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
+
+function makeWorker({ maxSessions = 2 } = {}) {
+  const calls = [];
+  const worker = createRemoteWorker({
+    env: {
+      WORKER_TOKEN: token,
+      WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
+      WORKER_SESSION_BASE_URL: "https://sessions.example.test",
+      WORKER_APPS_JSON: JSON.stringify(apps),
+      WORKER_MAX_SESSIONS: String(maxSessions)
+    },
+    execFileImpl: async (_command, args) => {
+      calls.push(args);
+      if (args[0] === "run") return { stdout: "container-id" };
+      if (args[0] === "port") return { stdout: "127.0.0.1:34567\n" };
+      if (args[0] === "rm" || args[0] === "ps") return { stdout: "" };
+      throw new Error("Unexpected container command");
+    }
+  });
+  return { ...worker, calls };
+}
+
+async function listen(worker) {
+  await new Promise((resolve) => worker.server.listen(0, "127.0.0.1", resolve));
+  return `http://127.0.0.1:${worker.server.address().port}`;
+}
+
+test("worker configuration requires a long token and valid public session base", () => {
+  assert.throws(() => createRemoteWorker({ env: {} }), /WORKER_TOKEN/);
+  assert.throws(() => createRemoteWorker({
+    env: { WORKER_TOKEN: token, WORKER_PUBLIC_BASE_URL: "https://runtime.example.test", WORKER_SESSION_BASE_URL: "http://sessions.example.test", WORKER_APPS_JSON: "[]" }
+  }), /WORKER_SESSION_BASE_URL/);
+});
+
+test("worker requires bearer authentication for capabilities", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const response = await fetch(`${base}/v1/capabilities`);
+    assert.equal(response.status, 401);
+    const health = await fetch(`${base}/api/health`);
+    assert.equal(health.status, 200);
+  } finally { await worker.close(); }
+});
+
+test("worker advertises only configured apps and launches allowlisted containers", async () => {
+  const worker = makeWorker();
+  const base = await listen(worker);
+  try {
+    const capabilities = await fetch(`${base}/v1/capabilities`, { headers: { authorization: `Bearer ${token}` } });
+    assert.equal(capabilities.status, 200);
+    assert.deepEqual((await capabilities.json()).apps.map((app) => app.id), ["desktop"]);
+
+    const bad = await fetch(`${base}/v1/sessions`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "arbitrary-image" })
+    });
+    assert.equal(bad.status, 400);
+
+    const response = await fetch(`${base}/v1/sessions`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop", client: "everything-platform" })
+    });
+    assert.equal(response.status, 201);
+    const session = await response.json();
+    assert.match(session.id, /^[a-f0-9]{16}$/);
+    assert.match(session.url, /^https:\/\/[a-f0-9]{16}-[a-f0-9]{32}\.sessions\.example\.test\/$/);
+    assert.ok(worker.calls.some((args) => args[0] === "run" && args.includes("--cap-drop") && args.includes("ALL") && args.includes("127.0.0.1::3000/tcp")));
+    assert.equal(worker.sessions.size, 1);
+
+    const deleted = await fetch(`${base}/v1/sessions/${session.id}`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } });
+    assert.equal(deleted.status, 200);
+    assert.equal(worker.sessions.size, 0);
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes(`everything-${session.id}`)));
+  } finally { await worker.close(); }
+});
+
+test("worker enforces the configured concurrent session limit", async () => {
+  const worker = makeWorker({ maxSessions: 1 });
+  const base = await listen(worker);
+  try {
+    const options = {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    };
+    const first = await fetch(`${base}/v1/sessions`, options);
+    assert.equal(first.status, 201);
+    const second = await fetch(`${base}/v1/sessions`, options);
+    assert.equal(second.status, 429);
+  } finally { await worker.close(); }
+});

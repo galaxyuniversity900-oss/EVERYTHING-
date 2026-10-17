@@ -19,4 +19,4 @@
 
 ## Missing before production
 
-Multi-user identity and user isolation, durable rate limiting, per-user provider secrets, audit logs, remote-worker deployment, persistent session storage, production proxy hardening, monitoring, backups, and a full security review.
+Multi-user identity and user isolation, durable rate limiting, per-user provider secrets, audit logs, remote-worker deployment and operations, persistent session storage, production proxy hardening, monitoring, backups, and a full security review.

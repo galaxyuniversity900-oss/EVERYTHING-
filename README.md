@@ -29,7 +29,7 @@ The catalog is curated from the upstream [HeyPuter/everything repository](https:
 
 ## Not included yet
 
-- The remote compute worker that actually runs desktop applications. The adapter requires a compatible provider implementing [the remote runtime contract](docs/remote-runtime-api.md).
+- A deployed remote compute service. This repository now includes an optional Docker-backed reference worker in [remote-worker/README.md](remote-worker/README.md), but it must be deployed on a dedicated Docker host with HTTPS/wildcard DNS and trusted images before it can run sessions.
 - Bundled local LLM weights or an inference engine. Local models must already be served by a compatible endpoint.
 - Multi-user accounts/roles, server-side user storage, production-grade abuse controls, audit logs, or a managed production deployment. The optional access gate uses one shared password and in-memory sessions, not individual user accounts. Local notes are browser-specific and are not synced.
 - Guaranteed compatibility with every app or low-memory phone.
@@ -104,6 +104,12 @@ HTTP is allowed only for a local loopback server. Restart the app, discover tool
 
 MCP tools can read, change, or delete data. Connect only trusted servers. The confirmation UI is not a replacement for production authentication or per-user authorization. The current build has one server-level configuration and no user accounts.
 
+## Optional Docker session worker
+
+This repository includes a separate Docker-backed worker reference implementation in [remote-worker/README.md](remote-worker/README.md). It launches only administrator-allowlisted images, applies container resource limits, binds app ports to loopback, and returns session URLs on a wildcard HTTPS hostname. It is not enabled by default and does not run until a Docker host and reverse proxy are configured.
+
+Worker sessions are ephemeral. The worker is highly privileged because it controls Docker, so deploy it only on a dedicated host with trusted, pinned images. Do not expose the worker's Node port directly; follow the reverse-proxy and access-log guidance in the worker guide.
+
 ## Optional remote runtime
 
 Configure a compatible remote worker:
@@ -136,7 +142,7 @@ These endpoints are not a public multi-user service. Do not expose them publicly
 1. Workspace core — implemented.
 2. AI gateway — implemented for OpenAI-compatible, Anthropic Messages, and Gemini text-chat protocols, with task-aware routing and optional fallback.
 3. MCP discovery and confirmed calls — implemented for one configured Streamable HTTP server; protocol compatibility and auditing need broader testing.
-4. Remote runtime adapter — implemented; compatible worker deployment is external.
+4. Remote runtime adapter and optional Docker session worker — code and tests implemented; deployment, trusted images, wildcard HTTPS, and real-device/network testing remain external.
 5. Advanced AI modalities (image/audio/video), provider-specific streaming, and task capability benchmarking.
 6. Local inference and low-resource device benchmarking.
 7. User identity, isolated persistent storage, import/export and recovery.
