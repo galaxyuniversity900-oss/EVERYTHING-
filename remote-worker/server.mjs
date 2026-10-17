@@ -77,12 +77,14 @@ function readWorkerConfig(env) {
     const parsed = Number.parseInt(env[key] || String(fallback), 10);
     return Number.isInteger(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
   };
+  const host = env.WORKER_HOST || "127.0.0.1";
+  if (!LOOPBACK_HOSTS.has(host)) throw new Error("WORKER_HOST must be loopback; expose the worker through a reverse proxy");
   return {
     token,
     publicBase,
     sessionBase,
     apps,
-    host: env.WORKER_HOST || "127.0.0.1",
+    host,
     port: integerSetting("WORKER_PORT", 8788, 0, 65535),
     maxSessions: integerSetting("WORKER_MAX_SESSIONS", 3, 1, 20),
     ttlMs: integerSetting("WORKER_SESSION_TTL_MINUTES", 60, 5, 1440) * 60_000,
