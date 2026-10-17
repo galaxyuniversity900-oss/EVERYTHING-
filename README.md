@@ -7,7 +7,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 ## Implemented in this branch
 
 - Dependency-free Node.js HTTP server and responsive app directory.
-- Verified hosted-app links plus source-only entries where a hosted URL is not verified.
+- 50 application entries sourced from the upstream Everything project: 22 published demo links and 28 source-only entries where the upstream README does not verify a hosted demo.
 - Searchable catalog and health API.
 - Device-local favorites and recently opened apps, plus a persistent compact layout for lower-end devices.
 - Installable PWA shell with versioned offline caching; API responses for AI, MCP, and remote sessions are never cached.
@@ -18,6 +18,10 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
 - Automated tests and GitHub Actions HTTP smoke tests, including a lightweight source-asset budget check.
 - Configuration, security, architecture, and remote provider API documentation.
+
+## Catalog provenance and limits
+
+The catalog is curated from the upstream [HeyPuter/everything repository](https://github.com/HeyPuter/everything), whose README describes the project as MIT-licensed. Each entry links back to its upstream source. The `hosted` flag is set only when the upstream README provides a demo link without a “Demo URL not yet provided” warning. A hosted link is an external service and is not embedded or self-hosted by EVERYTHING-. Upstream links and availability may change; re-check the source before relying on a demo.
 
 ## Not included yet
 
