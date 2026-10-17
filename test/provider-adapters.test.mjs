@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProviderCompletion } from "../src/ai/provider-adapters.mjs";
+import { checkProviderConnection, createProviderCompletion } from "../src/ai/provider-adapters.mjs";
 
 test("Anthropic adapter maps system and chat messages to Messages API", async () => {
   let url;
@@ -165,4 +165,39 @@ test("provider connectivity diagnostics can probe an opted-in internal Ollama en
   assert.equal(requestedUrl, "http://ollama:11434/v1/models");
   assert.equal(result.ok, true);
   assert.equal(result.modelListed, true);
+});
+
+
+test("AI completion cancels an oversized streamed provider response", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(700 * 1024));
+      controller.enqueue(new Uint8Array(400 * 1024));
+      controller.enqueue(new Uint8Array(16));
+    },
+    cancel() { cancelled = true; }
+  });
+  await assert.rejects(createProviderCompletion({
+    provider: { protocol: "openai-compatible", baseUrl: "https://provider.example.test/v1", model: "model-a", apiKey: "test-key" },
+    messages: [{ role: "user", content: "hello" }],
+    fetchImpl: async () => new Response(body, { status: 200, headers: { "content-type": "application/json" } })
+  }), (error) => error.code === "provider_response_too_large" && error.status === 502);
+  assert.equal(cancelled, true);
+});
+
+test("AI provider connection check bounds streamed model-list responses", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(200 * 1024));
+      controller.enqueue(new Uint8Array(100 * 1024));
+    },
+    cancel() { cancelled = true; }
+  });
+  await assert.rejects(checkProviderConnection({
+    provider: { configured: true, protocol: "openai-compatible", baseUrl: "https://provider.example.test/v1", model: "model-a", apiKey: "test-key" },
+    fetchImpl: async () => new Response(body, { status: 200, headers: { "content-type": "application/json" } })
+  }), (error) => error.code === "provider_response_too_large" && error.status === 502);
+  assert.equal(cancelled, true);
 });
