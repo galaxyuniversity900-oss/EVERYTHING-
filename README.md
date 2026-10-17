@@ -16,7 +16,7 @@ The long-term goal is to make useful software accessible on modest devices witho
 - A rate-limited provider connection check that probes model-list endpoints without generating completion tokens and reports latency/model availability.
 - Browser capability assessment for WASM/WebGPU plus approximate device-memory, CPU, and network constraints to recommend browser-native versus configured remote execution.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
-- Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
+- Remote runtime provider adapter and optional Docker-backed session worker with allowlisted images, resource limits, bearer-protected worker APIs, and ephemeral browser-view sessions.
 - Automated tests, GitHub Actions HTTP/container smoke tests, a lightweight source-asset budget check, and scheduled CodeQL static analysis.
 - Configuration, security, architecture, and remote provider API documentation.
 
@@ -49,7 +49,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:8787`. The server binds to localhost by default. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
+Open `http://127.0.0.1:8787`. The server binds to localhost by default. See [the Android/Termux guide](docs/termux-android.md) for running the workspace on a phone. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
 
 ## Optional access gate
 
