@@ -65,11 +65,18 @@ function rateLimit(req, buckets, limit) {
 }
 
 function sameOriginIfProvided(req, res) {
-  const origin = req.headers.origin;
-  if (!origin) return true;
+  const hostHeader = req.headers.host || "localhost";
   try {
-    const expected = new URL(`http://${req.headers.host || "localhost"}`).host;
-    if (new URL(origin).host !== expected) {
+    const requestUrl = new URL(`http://${hostHeader}`);
+    const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+    if (!loopbackHosts.has(requestUrl.hostname)) {
+      sendJson(res, 403, { error: { code: "unsafe_host", message: "State-changing endpoints are restricted to loopback hosts in this development build." } });
+      return false;
+    }
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    const originUrl = new URL(origin);
+    if (originUrl.host !== requestUrl.host || !loopbackHosts.has(originUrl.hostname)) {
       sendJson(res, 403, { error: { code: "origin_not_allowed", message: "Cross-origin requests are not allowed." } });
       return false;
     }
