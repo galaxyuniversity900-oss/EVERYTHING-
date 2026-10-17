@@ -36,7 +36,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:8787`. The server binds to localhost by default. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place.
+Open `http://127.0.0.1:8787`. The server binds to localhost by default. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
 
 ## Optional AI and model routing
 

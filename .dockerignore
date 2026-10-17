@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+node_modules
+coverage
+*.log
+.DS_Store
+README*
+CONTRIBUTING.md
+SECURITY.md
+docs
+test
