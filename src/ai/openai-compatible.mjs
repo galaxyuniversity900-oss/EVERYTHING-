@@ -1,3 +1,4 @@
+import { readBoundedResponseText } from "../utils/read-bounded-response.mjs";
 const MAX_TIMEOUT_MS = 90_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
@@ -47,10 +48,11 @@ export async function createChatCompletion({
       body: JSON.stringify({ model, messages: safeMessages, stream: false }),
       signal: controller.signal, redirect: "error"
     });
-    const responseText = await response.text();
-    if (Buffer.byteLength(responseText, "utf8") > MAX_RESPONSE_BYTES) {
-      throw Object.assign(new Error("AI provider response exceeded the size limit"), { code: "provider_response_too_large", status: 502 });
-    }
+    const responseText = await readBoundedResponseText(response, {
+      maxBytes: MAX_RESPONSE_BYTES,
+      message: "AI provider response exceeded the size limit",
+      code: "provider_response_too_large"
+    });
     let payload = {};
     try { payload = responseText ? JSON.parse(responseText) : {}; } catch { /* Handle non-JSON provider errors below. */ }
     if (!response.ok) {
