@@ -64,7 +64,7 @@ async function checkProvider() {
     for (const provider of configured) {
       const option = document.createElement("option");
       option.value = provider.id;
-      option.textContent = `${provider.name} · ${provider.model}${provider.local ? " · local" : ""}`;
+      option.textContent = `${provider.name} · ${provider.model}${provider.local ? " · local" : provider.internalHttp ? " · private network" : ""}`;
       providerSelect.append(option);
     }
     providerSelect.disabled = configured.length === 0;
