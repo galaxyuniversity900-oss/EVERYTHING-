@@ -55,7 +55,13 @@ jobs:
             const health = JSON.parse(fs.readFileSync("/tmp/everything-health.json", "utf8"));
             if (health.status !== "ok") process.exit(1);
           '
-          curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '\n            let input = "";\n            for await (const chunk of process.stdin) input += chunk;\n            const payload = JSON.parse(input);\n            if (payload.name !== "EVERYTHING- Workspace") process.exit(1);\n          '\n          curl --fail --silent http://127.0.0.1:18787/api/apps | node --input-type=module -e '
+          curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.name !== "EVERYTHING- Workspace") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/apps | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
             const payload = JSON.parse(input);
