@@ -8,10 +8,12 @@
   <title>EVERYTHING- | Lightweight Workspace</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/mcp.css">
+  <link rel="stylesheet" href="/remote.css">
   <script type="module" src="/app.js"></script>
   <script type="module" src="/ai.js"></script>
   <script type="module" src="/runtime.js"></script>
   <script type="module" src="/mcp.js"></script>
+  <script type="module" src="/remote.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -68,12 +70,23 @@
       <div class="runtime-result"><span id="runtime-mode">Checking browser…</span><p id="runtime-details">Reading available browser capabilities.</p></div>
     </section>
 
+
+    <section class="remote-section" aria-labelledby="remote-title">
+      <div class="remote-section-head">
+        <div><p class="eyebrow">REMOTE WORKSPACE RUNTIME</p><h2 id="remote-title">Run heavy apps on another machine.</h2><p>Connect a trusted runtime service to launch apps remotely. This repository contains the session adapter and client UI, but does not include or host the remote worker itself.</p></div>
+        <button id="remote-refresh" class="secondary-button" type="button">Refresh remote apps ↻</button>
+      </div>
+      <div id="remote-status" class="remote-status" role="status">Checking remote runtime configuration…</div>
+      <div id="remote-apps" class="remote-apps"><p class="remote-empty">No runtime configured yet.</p></div>
+      <div id="remote-sessions" class="remote-sessions" aria-live="polite"></div>
+    </section>
+
     <section class="roadmap">
       <div><p class="eyebrow">ENGINEERING ROADMAP</p><h2>Light interface.<br>Real execution.</h2></div>
       <div class="roadmap-items">
         <article><span class="step">01</span><div><h3>Workspace core</h3><p>App registry, responsive directory, catalog API and automated CI.</p><span class="tag tag-live">Implemented</span></div></article>
         <article><span class="step">02</span><div><h3>AI gateway foundation</h3><p>Opt-in OpenAI-compatible chat endpoint, server-only key, validation, request size limit and basic rate limit.</p><span class="tag tag-live">Implemented · configure provider to use</span></div></article>
-        <article><span class="step">03</span><div><h3>Adaptive execution</h3><p>Capability assessment exists; actual remote app streaming and workload execution adapters are still required.</p><span class="tag">In progress</span></div></article>
+        <article><span class="step">03</span><div><h3>Remote runtime adapter</h3><p>Authenticated provider client, supported-app discovery, session creation and session closing are implemented. A compatible remote worker must be deployed separately.</p><span class="tag tag-live">Adapter implemented · worker external</span></div></article>
         <article><span class="step">04</span><div><h3>MCP tool gateway</h3><p>Configured server discovery and confirmed tool calls are implemented; production authentication and auditing remain required.</p><span class="tag tag-live">Implemented · configure trusted server</span></div></article>
       </div>
     </section>
