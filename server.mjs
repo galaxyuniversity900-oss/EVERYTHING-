@@ -8,6 +8,7 @@ import { publicAIProviderRegistry } from "./src/ai/provider-registry.mjs";
 import { assessCapabilities } from "./src/runtime/capabilities.mjs";
 import { createMcpClient } from "./src/mcp/client.mjs";
 import { createRemoteRuntime } from "./src/runtime/remote-provider.mjs";
+import { createAuthManager } from "./src/security/auth.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, "public");
@@ -19,6 +20,10 @@ const mcpConfigured = Boolean(process.env.MCP_SERVER_URL);
 const remoteConfigured = Boolean(process.env.REMOTE_RUNTIME_URL);
 const remoteRateBuckets = new Map();
 const activeRemoteSessions = new Map();
+const authRateBuckets = new Map();
+const cookieSecure = process.env.COOKIE_SECURE === "true";
+const authManager = createAuthManager({ password: process.env.AUTH_PASSWORD || "", cookieSecure });
+const trustedHosts = new Set((process.env.TRUSTED_HOSTS || "").split(",").map((value) => value.trim().toLowerCase()).filter((value) => /^[a-z0-9.-]{1,253}$/.test(value) && !value.startsWith(".") && !value.endsWith(".") && !value.includes("..")));
 const MAX_BODY_BYTES = 48 * 1024;
 const rateBuckets = new Map();
 const mcpRateBuckets = new Map();
@@ -72,14 +77,21 @@ function sameOriginIfProvided(req, res) {
   try {
     const requestUrl = new URL(`http://${hostHeader}`);
     const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-    if (!loopbackHosts.has(requestUrl.hostname)) {
-      sendJson(res, 403, { error: { code: "unsafe_host", message: "State-changing endpoints are restricted to loopback hosts in this development build." } });
+    const isLoopback = loopbackHosts.has(requestUrl.hostname);
+    const isTrustedPublic = authManager.enabled && cookieSecure && trustedHosts.has(requestUrl.hostname.toLowerCase());
+    if (!isLoopback && !isTrustedPublic) {
+      sendJson(res, 403, { error: { code: "unsafe_host", message: "This host is not trusted by the current server configuration." } });
+      return false;
+    }
+    if (isTrustedPublic && String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() !== "https") {
+      sendJson(res, 403, { error: { code: "https_required", message: "Trusted public hosts must be served through an HTTPS reverse proxy." } });
       return false;
     }
     const origin = req.headers.origin;
     if (!origin) return true;
     const originUrl = new URL(origin);
-    if (originUrl.host !== requestUrl.host || !loopbackHosts.has(originUrl.hostname)) {
+    const originHostAllowed = loopbackHosts.has(originUrl.hostname) || (authManager.enabled && cookieSecure && trustedHosts.has(originUrl.hostname.toLowerCase()));
+    if (originUrl.host !== requestUrl.host || !originHostAllowed || (isTrustedPublic && originUrl.protocol !== "https:")) {
       sendJson(res, 403, { error: { code: "origin_not_allowed", message: "Cross-origin requests are not allowed." } });
       return false;
     }
@@ -99,9 +111,41 @@ const server = createServer(async (req, res) => {
   if (!sameOriginIfProvided(req, res)) return;
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
+  if (req.method === "GET" && url.pathname === "/api/auth/status") {
+    const authenticated = authManager.enabled ? authManager.isAuthenticated(req) : true;
+    return sendJson(res, 200, { required: authManager.enabled, authenticated });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/login") {
+    if (!authManager.enabled) return sendJson(res, 400, { error: { code: "auth_not_configured", message: "No access password is configured on this server." } });
+    if (!rateLimit(req, authRateBuckets, 5)) return sendJson(res, 429, { error: { code: "login_rate_limited", message: "Too many login attempts. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || !authManager.verifyPassword(body.password)) {
+        return sendJson(res, 401, { error: { code: "invalid_credentials", message: "The password was not accepted." } });
+      }
+      const token = authManager.createSession();
+      res.setHeader("set-cookie", authManager.cookie(token));
+      return sendJson(res, 200, { authenticated: true });
+    } catch (error) {
+      return routeError(res, error, "login_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+    authManager.destroySession(req);
+    res.setHeader("set-cookie", authManager.clearCookie());
+    return sendJson(res, 200, { authenticated: !authManager.enabled });
+  }
+
+  if (authManager.enabled && url.pathname.startsWith("/api/") && !authManager.isAuthenticated(req)) {
+    return sendJson(res, 401, { error: { code: "authentication_required", message: "Sign in to access this API." } });
+  }
+
   if (req.method === "GET" || req.method === "HEAD") {
     if (url.pathname === "/api/health") {
-      return sendJson(res, 200, { status: "ok", service: "everything-platform", version: "0.4.0" });
+      return sendJson(res, 200, { status: "ok", service: "everything-platform", version: "0.5.0" });
     }
     if (url.pathname === "/api/apps") {
       const results = getApps({ category: url.searchParams.get("category") || "All", query: url.searchParams.get("q") || "" });

@@ -9,8 +9,9 @@
 - AI messages are sent to the configured provider. Review its retention and privacy policy before sending sensitive data.
 - MCP tool discovery and calls are implemented for one configured Streamable HTTP server. Tools may have side effects; connect only trusted servers and review each call.
 - The current confirmation UI and in-memory rate limits are basic safeguards, not production-grade authorization or abuse prevention.
-- Multi-user authentication, remote app runtime sessions, and persistent user storage are not implemented.
+- A shared-password access gate is available, but multi-user identity/roles and persistent server-side user storage are not implemented. The remote session adapter requires an external worker.
 - MCP bearer tokens are shared server configuration in this version, not per-user credentials.
+- Public-host mode requires an access password, Secure cookies, a trusted hostname allowlist, and an HTTPS reverse proxy that sets `X-Forwarded-Proto` correctly. Do not expose the Node port directly.
 - Browser-local notes and prompts are stored in IndexedDB without application-level encryption. They are not sent to the server automatically, but scripts running on the same origin can access them; avoid storing passwords, API keys, or other secrets there.
 
 ## Reporting

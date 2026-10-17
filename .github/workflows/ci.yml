@@ -24,14 +24,16 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check server.mjs
+          node --check src/security/auth.mjs
           node --check src/registry.mjs
           node --check src/ai/openai-compatible.mjs
           node --check src/ai/provider-registry.mjs
-          node --check src/ai/router.mjs
           node --check src/ai/provider-adapters.mjs
+          node --check src/ai/router.mjs
           node --check src/runtime/capabilities.mjs
           node --check src/runtime/remote-provider.mjs
           node --check src/mcp/client.mjs
+          node --check public/auth.js
           node --check public/app.js
           node --check public/ai.js
           node --check public/runtime.js
@@ -53,19 +55,24 @@ jobs:
             fi
             sleep 1
           done
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const health = JSON.parse(fs.readFileSync("/tmp/everything-health.json", "utf8"));
-            if (health.status !== "ok") process.exit(1);
-          '
-          curl --fail --silent http://127.0.0.1:18787/workspace.css > /tmp/everything-workspace.css
-          test -s /tmp/everything-workspace.css
-          curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '
+          curl --fail --silent http://127.0.0.1:18787/api/auth/status | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
             const payload = JSON.parse(input);
-            if (payload.name !== "EVERYTHING- Workspace") process.exit(1);
+            if (payload.required !== false || payload.authenticated !== true) process.exit(1);
           '
+          curl --fail --silent http://127.0.0.1:18787/api/health | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            if (JSON.parse(input).status !== "ok") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/manifest.webmanifest | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            if (JSON.parse(input).name !== "EVERYTHING- Workspace") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/workspace.css > /tmp/everything-workspace.css
+          test -s /tmp/everything-workspace.css
           curl --fail --silent http://127.0.0.1:18787/api/apps | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
@@ -76,14 +83,12 @@ jobs:
           curl --fail --silent http://127.0.0.1:18787/api/ai/providers | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
-            const payload = JSON.parse(input);
-            if (payload.enabled !== false) process.exit(1);
+            if (JSON.parse(input).enabled !== false) process.exit(1);
           '
           curl --fail --silent http://127.0.0.1:18787/api/mcp/status | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
-            const payload = JSON.parse(input);
-            if (payload.configured !== false) process.exit(1);
+            if (JSON.parse(input).configured !== false) process.exit(1);
           '
           curl --fail --silent 'http://127.0.0.1:18787/api/runtime/capabilities?wasm=1&webgpu=0' | node --input-type=module -e '
             let input = "";
@@ -94,8 +99,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:18787/api/runtime/remote/status | node --input-type=module -e '
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
-            const payload = JSON.parse(input);
-            if (payload.configured !== false) process.exit(1);
+            if (JSON.parse(input).configured !== false) process.exit(1);
           '
           AI_STATUS=$(curl --silent --output /tmp/everything-ai-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/ai/chat -H 'content-type: application/json' --data '{"messages":[{"role":"user","content":"test"}]}')
           test "$AI_STATUS" = "503"
@@ -105,3 +109,28 @@ jobs:
           test "$REMOTE_STATUS" = "503"
           HOST_STATUS=$(curl --silent --output /tmp/everything-host-blocked.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Host: attacker.example' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
           test "$HOST_STATUS" = "403"
+          AUTH_PASSWORD=ci-test-password COOKIE_SECURE=false PORT=18788 node server.mjs > /tmp/everything-auth-server.log 2>&1 &
+          AUTH_PID=$!
+          trap 'kill "$SERVER_PID" "$AUTH_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18788/api/auth/status > /tmp/everything-auth-status.json; then
+              break
+            fi
+            sleep 1
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const payload = JSON.parse(fs.readFileSync("/tmp/everything-auth-status.json", "utf8"));
+            if (payload.required !== true || payload.authenticated !== false) process.exit(1);
+          '
+          AUTH_BLOCKED=$(curl --silent --output /tmp/everything-auth-blocked.json --write-out '%{http_code}' http://127.0.0.1:18788/api/apps)
+          test "$AUTH_BLOCKED" = "401"
+          BAD_LOGIN=$(curl --silent --output /tmp/everything-bad-login.json --write-out '%{http_code}' -X POST http://127.0.0.1:18788/api/auth/login -H 'content-type: application/json' --data '{"password":"wrong-password"}')
+          test "$BAD_LOGIN" = "401"
+          GOOD_LOGIN=$(curl --silent --output /tmp/everything-good-login.json --write-out '%{http_code}' -c /tmp/everything-cookies.txt -X POST http://127.0.0.1:18788/api/auth/login -H 'content-type: application/json' --data '{"password":"ci-test-password"}')
+          test "$GOOD_LOGIN" = "200"
+          AUTHORIZED_API=$(curl --silent --output /tmp/everything-authorized.json --write-out '%{http_code}' -b /tmp/everything-cookies.txt http://127.0.0.1:18788/api/apps)
+          test "$AUTHORIZED_API" = "200"
+          curl --fail --silent -b /tmp/everything-cookies.txt -X POST http://127.0.0.1:18788/api/auth/logout > /tmp/everything-logout.json
+          LOGGED_OUT_API=$(curl --silent --output /tmp/everything-logged-out.json --write-out '%{http_code}' http://127.0.0.1:18788/api/apps)
+          test "$LOGGED_OUT_API" = "401"
