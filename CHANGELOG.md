@@ -17,6 +17,14 @@
 
 All notable changes to EVERYTHING- are recorded here.
 
+## 0.6.0 — Docker session worker
+
+- Added an optional Docker-backed remote worker for administrator-allowlisted app images.
+- Added bearer-authenticated capabilities/session APIs, session URL tokens, WebSocket proxying, and idle/absolute expiry.
+- Added CPU, memory, PID, port-binding, and Linux capability controls for launched containers.
+- Added mocked worker lifecycle tests and deployment guidance for wildcard HTTPS reverse proxies.
+- Documented that the worker requires a dedicated Docker host and that sessions are ephemeral.
+
 ## 0.5.0 — Access gate
 
 - Added an optional shared-password sign-in overlay and logout flow.
