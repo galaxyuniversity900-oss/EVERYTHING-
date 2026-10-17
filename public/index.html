@@ -10,6 +10,7 @@
   <script type="module" src="/app.js"></script>
   <script type="module" src="/ai.js"></script>
   <script type="module" src="/runtime.js"></script>
+  <script type="module" src="/mcp.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -46,6 +47,21 @@
       </div>
     </section>
 
+
+    <section class="mcp-section" aria-labelledby="mcp-title">
+      <div class="mcp-heading"><p class="eyebrow">MODEL CONTEXT PROTOCOL</p><h2 id="mcp-title">Connect tools.<br>Approve every action.</h2><p>Configure one trusted MCP Streamable HTTP server in the local server environment. Tool execution requires an explicit confirmation and may have side effects. Do not connect untrusted servers.</p><div id="mcp-status" class="ai-status" role="status">Checking MCP configuration…</div><button id="mcp-refresh" class="secondary-button" type="button">Discover tools ↻</button></div>
+      <div class="mcp-panel">
+        <h3>Available tools</h3><ul id="mcp-tools" class="mcp-tools"><li>Waiting for MCP configuration.</li></ul>
+        <form id="mcp-form" class="mcp-form">
+          <label for="mcp-tool-name">Tool name</label><input id="mcp-tool-name" maxlength="128" autocomplete="off" placeholder="Choose a discovered tool" required>
+          <label for="mcp-arguments">Arguments (JSON object)</label><textarea id="mcp-arguments" rows="4" placeholder='{"example":"value"}'>{}</textarea>
+          <label class="confirm-label"><input id="mcp-confirm" type="checkbox"> I reviewed this tool and its arguments and approve the call.</label>
+          <button id="mcp-run" type="submit">Run confirmed tool ↗</button>
+        </form>
+        <pre id="mcp-output" class="mcp-output" aria-live="polite">Tool results will appear here.</pre>
+      </div>
+    </section>
+
     <section class="runtime-section" aria-labelledby="runtime-title">
       <div><p class="eyebrow">DEVICE CAPABILITY CHECK</p><h2 id="runtime-title">Choose the right execution path.</h2><p class="runtime-copy">This checks browser features only. It does not benchmark the device or prove that a specific app/model will fit in memory.</p></div>
       <div class="runtime-result"><span id="runtime-mode">Checking browser…</span><p id="runtime-details">Reading available browser capabilities.</p></div>
@@ -57,7 +73,7 @@
         <article><span class="step">01</span><div><h3>Workspace core</h3><p>App registry, responsive directory, catalog API and automated CI.</p><span class="tag tag-live">Implemented</span></div></article>
         <article><span class="step">02</span><div><h3>AI gateway foundation</h3><p>Opt-in OpenAI-compatible chat endpoint, server-only key, validation, request size limit and basic rate limit.</p><span class="tag tag-live">Implemented · configure provider to use</span></div></article>
         <article><span class="step">03</span><div><h3>Adaptive execution</h3><p>Capability assessment exists; actual remote app streaming and workload execution adapters are still required.</p><span class="tag">In progress</span></div></article>
-        <article><span class="step">04</span><div><h3>Local models, MCP and storage</h3><p>Local inference, secure tool connections, accounts and persistent user workspaces require separate tested implementations.</p><span class="tag">Not implemented yet</span></div></article>
+        <article><span class="step">04</span><div><h3>MCP tool gateway</h3><p>Configured server discovery and confirmed tool calls are implemented; production authentication and auditing remain required.</p><span class="tag tag-live">Implemented · configure trusted server</span></div></article>
       </div>
     </section>
     <footer><span>EVERYTHING- · Open foundations for a lighter computing experience</span><a href="https://github.com/galaxyuniversity900-oss/EVERYTHING-" target="_blank" rel="noreferrer">Source repository ↗</a></footer>
