@@ -1,5 +1,13 @@
 # Changelog
 
+## AI provider connection diagnostics
+
+- Added a rate-limited endpoint to check provider model-list connectivity without generating tokens.
+- Added an AI panel action with latency and configured-model availability feedback.
+- Added protocol-specific checks for OpenAI-compatible, Anthropic, and Gemini endpoints with bounded responses/timeouts and no credential disclosure.
+- Added tests for URL safety, provider authentication headers, UI wiring, and disabled-mode behavior.
+
+
 ## Device-aware runtime profile
 
 - Added browser-local estimates for memory, CPU concurrency, WebGPU exposure, and network constraints.
