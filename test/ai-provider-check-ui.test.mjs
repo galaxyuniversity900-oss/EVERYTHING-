@@ -13,3 +13,11 @@ test("AI panel exposes an explicit provider connection test", () => {
   assert.match(script, /Connection test failed/);
   assert.match(css, /\.ai-test-button/);
 });
+
+
+test("AI panel exposes cancellation while a model request is active", () => {
+  assert.match(html, /id="ai-cancel"/);
+  assert.match(script, /activeChatController\.abort\(\)/);
+  assert.match(script, /signal: controller\.signal/);
+  assert.match(css, /\.ai-cancel-button/);
+});
