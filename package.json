@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "A lightweight web workspace for browser-based apps, with adaptive local and remote execution planned as explicit capabilities.",
+  "description": "A lightweight browser workspace with local notes, multi-provider AI, MCP tools, and optional remote runtime sessions.",
   "engines": {
     "node": ">=22.12.0"
   },
