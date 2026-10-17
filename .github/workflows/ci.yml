@@ -37,6 +37,7 @@ jobs:
           node --check public/app.js
           node --check public/ai.js
           node --check public/runtime.js
+          node --check public/device-profile.js
           node --check public/mcp.js
           node --check public/remote.js
           node --check public/sw.js
