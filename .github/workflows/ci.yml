@@ -15,6 +15,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Go for actionlint
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: false
+      - name: Lint GitHub Actions workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -51,7 +58,7 @@ jobs:
           PORT=18787 node server.mjs > /tmp/everything-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:18787/api/health > /tmp/everything-health.json; then
               break
             fi
@@ -118,7 +125,7 @@ jobs:
           AUTH_PASSWORD=ci-test-password COOKIE_SECURE=false PORT=18788 node server.mjs > /tmp/everything-auth-server.log 2>&1 &
           AUTH_PID=$!
           trap 'kill "$SERVER_PID" "$AUTH_PID" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:18788/api/auth/status > /tmp/everything-auth-status.json; then
               break
             fi
@@ -155,7 +162,7 @@ jobs:
           AI_API_ENABLED=true OPENAI_BASE_URL=http://127.0.0.1:18789/v1 OPENAI_MODEL=ci-model OPENAI_API_KEY=ci-provider-secret PORT=18790 node server.mjs > /tmp/everything-ai-check-server.log 2>&1 &
           AI_PID=$!
           trap 'kill "$SERVER_PID" "$AUTH_PID" "$MODEL_PID" "$AI_PID" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:18790/api/ai/providers > /tmp/everything-configured-providers.json; then break; fi
             sleep 1
           done
