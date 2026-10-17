@@ -27,11 +27,13 @@ jobs:
           node --check src/registry.mjs
           node --check src/ai/openai-compatible.mjs
           node --check src/runtime/capabilities.mjs
+          node --check src/runtime/remote-provider.mjs
           node --check src/mcp/client.mjs
           node --check public/app.js
           node --check public/ai.js
           node --check public/runtime.js
           node --check public/mcp.js
+          node --check public/remote.js
       - name: Smoke-test HTTP APIs
         shell: bash
         run: |
@@ -73,11 +75,19 @@ jobs:
             let input = "";
             for await (const chunk of process.stdin) input += chunk;
             const payload = JSON.parse(input);
-            if (!payload.capabilities || payload.remoteExecutionImplemented !== false) process.exit(1);
+            if (!payload.capabilities || payload.remoteSessionAdapterImplemented !== true || payload.remoteRuntimeConfigured !== false) process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:18787/api/runtime/remote/status | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (payload.configured !== false) process.exit(1);
           '
           AI_STATUS=$(curl --silent --output /tmp/everything-ai-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/ai/chat -H 'content-type: application/json' --data '{"messages":[{"role":"user","content":"test"}]}')
           test "$AI_STATUS" = "503"
           MCP_STATUS=$(curl --silent --output /tmp/everything-mcp-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
           test "$MCP_STATUS" = "503"
+          REMOTE_STATUS=$(curl --silent --output /tmp/everything-remote-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/runtime/remote/sessions -H 'content-type: application/json' --data '{"appId":"editor","confirmed":true}')
+          test "$REMOTE_STATUS" = "503"
           HOST_STATUS=$(curl --silent --output /tmp/everything-host-blocked.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Host: attacker.example' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
           test "$HOST_STATUS" = "403"
