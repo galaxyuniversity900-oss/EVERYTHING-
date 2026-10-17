@@ -110,3 +110,24 @@ test("MCP client still parses valid chunked JSON-RPC responses", async () => {
   assert.equal(result.tools[0].name, "chunked_tool");
   assert.equal(calls, 3);
 });
+
+
+test("MCP client cancels in-flight calls when the caller aborts", async () => {
+  const controller = new AbortController();
+  let receivedSignal;
+  const client = createMcpClient({
+    env: { MCP_SERVER_URL: "https://mcp.example.test/mcp" },
+    signal: controller.signal,
+    fetchImpl: async (_url, options) => {
+      receivedSignal = options.signal;
+      return await new Promise((resolve, reject) => {
+        options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      });
+    }
+  });
+  const pending = client.listTools();
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+  await assert.rejects(pending, (error) => error.code === "mcp_cancelled" && error.status === 499);
+  assert.equal(receivedSignal.aborted, true);
+});
