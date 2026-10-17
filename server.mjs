@@ -149,7 +149,7 @@ const server = createServer(async (req, res) => {
 
   if (req.method === "GET" || req.method === "HEAD") {
     if (url.pathname === "/api/health") {
-      return sendJson(res, 200, { status: "ok", service: "everything-platform", version: "0.11.0" });
+      return sendJson(res, 200, { status: "ok", service: "everything-platform", version: "0.12.0" });
     }
     if (url.pathname === "/api/apps") {
       const results = getApps({ category: url.searchParams.get("category") || "All", query: url.searchParams.get("q") || "" });
