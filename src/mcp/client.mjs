@@ -55,13 +55,39 @@ async function readSseResponse(response, id) {
   }
 }
 
+async function readBoundedJsonText(response) {
+  if (!response.body) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
+      throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
+    }
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
+      }
+      chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks, totalBytes).toString("utf8");
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 async function readRpcResponse(response, id) {
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("text/event-stream")) return readSseResponse(response, id);
-  const text = await response.text();
-  if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
-    throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
-  }
+  const text = await readBoundedJsonText(response);
   if (!text.trim()) return null;
   try {
     const parsed = JSON.parse(text);
