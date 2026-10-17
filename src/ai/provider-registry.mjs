@@ -1,14 +1,14 @@
 const ID_PATTERN = /^[a-zA-Z0-9_.-]{1,64}$/;
 const ENV_PATTERN = /^[A-Z_][A-Z0-9_]{0,127}$/;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const SUPPORTED_PROTOCOLS = new Set(["openai-compatible", "anthropic", "gemini"]);
 
 function endpointSafety(baseUrl) {
   try {
     const url = new URL(baseUrl);
     const local = LOOPBACK_HOSTS.has(url.hostname) && url.protocol === "http:";
     const secureRemote = url.protocol === "https:";
-    const safe = (local || secureRemote) && !url.username && !url.password && !url.hash && !url.search;
-    return { safe, local };
+    return { safe: (local || secureRemote) && !url.username && !url.password && !url.hash && !url.search, local };
   } catch { return { safe: false, local: false }; }
 }
 
@@ -17,6 +17,7 @@ function configuredProvider(profile, env, globallyEnabled) {
   const name = (typeof profile.name === "string" ? profile.name : id).slice(0, 120);
   const baseUrl = typeof profile.baseUrl === "string" ? profile.baseUrl.slice(0, 2048) : "";
   const model = typeof profile.model === "string" ? profile.model.slice(0, 160) : "";
+  const protocol = typeof profile.protocol === "string" ? profile.protocol : "openai-compatible";
   const apiKeyEnv = typeof profile.apiKeyEnv === "string" && ENV_PATTERN.test(profile.apiKeyEnv) ? profile.apiKeyEnv : "";
   const apiKey = apiKeyEnv ? env[apiKeyEnv] || "" : "";
   const safety = endpointSafety(baseUrl);
@@ -24,9 +25,10 @@ function configuredProvider(profile, env, globallyEnabled) {
   const capabilities = Array.isArray(profile.capabilities)
     ? [...new Set(profile.capabilities.filter((value) => typeof value === "string" && ID_PATTERN.test(value)))].slice(0, 20)
     : ["chat"];
+  const keyAvailable = Boolean(apiKey || (safety.local && protocol === "openai-compatible"));
   return {
-    id, name, baseUrl, model, apiKeyEnv, apiKey, local: safety.local, enabled, capabilities,
-    configured: Boolean(globallyEnabled && enabled && safety.safe && baseUrl && model && (apiKey || safety.local))
+    id, name, baseUrl, model, protocol, apiKeyEnv, apiKey, local: safety.local, enabled, capabilities,
+    configured: Boolean(globallyEnabled && enabled && SUPPORTED_PROTOCOLS.has(protocol) && safety.safe && baseUrl && model && keyAvailable)
   };
 }
 
@@ -46,6 +48,7 @@ export function getAIProviderRegistry(env = process.env) {
     profiles = [{
       id: "default",
       name: "OpenAI-compatible API",
+      protocol: "openai-compatible",
       baseUrl: env.OPENAI_BASE_URL || "https://api.openai.com/v1",
       model: env.OPENAI_MODEL || "gpt-4o-mini",
       apiKeyEnv: "OPENAI_API_KEY",
@@ -71,8 +74,8 @@ export function getAIProviderRegistry(env = process.env) {
 export function publicAIProviderRegistry(env = process.env) {
   const registry = getAIProviderRegistry(env);
   return {
-    providers: registry.providers.map(({ id, name, model, configured, enabled, capabilities, local }) => ({
-      id, name, model: configured ? model : null, configured, enabled, capabilities, local
+    providers: registry.providers.map(({ id, name, model, protocol, configured, enabled, capabilities, local }) => ({
+      id, name, model: configured ? model : null, protocol, configured, enabled, capabilities, local
     })),
     enabled: registry.providers.some((provider) => provider.configured),
     defaultProviderId: registry.defaultProviderId,
