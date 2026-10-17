@@ -124,10 +124,10 @@ function renderItems() {
       makeButton("Use with AI", "workspace-secondary", () => {
         const aiInput = document.querySelector("#ai-input");
         if (aiInput) {
-          aiInput.value = item.content;
+          aiInput.value = item.content.slice(0, 12000);
           document.querySelector("#ai-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
           aiInput.focus();
-          setStatus("Item copied into the AI input. It will not be sent until you press Send.");
+          setStatus(item.content.length > 12000 ? "First 12,000 characters copied into the AI input. Review before sending." : "Item copied into the AI input. It will not be sent until you press Send.");
         }
       }),
       makeButton("Delete", "workspace-danger", async () => {
