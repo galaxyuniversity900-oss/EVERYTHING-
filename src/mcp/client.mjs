@@ -7,25 +7,62 @@ function configuredUrl(env) {
   try { url = new URL(env.MCP_SERVER_URL); } catch {
     throw Object.assign(new Error("MCP_SERVER_URL is invalid"), { code: "invalid_mcp_url", status: 500 });
   }
-  const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  const local = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname);
   if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) || url.username || url.password || url.hash) {
     throw Object.assign(new Error("MCP URL must use HTTPS (HTTP is allowed only for localhost) and cannot include credentials or fragments"), { code: "unsafe_mcp_url", status: 500 });
   }
   return url;
 }
 
-function parseRpcResponse(text, contentType, id) {
-  if (!text.trim()) return null;
-  if (contentType.includes("text/event-stream")) {
-    const events = text.split(/\r?\n\r?\n/);
-    const parsed = [];
-    for (const event of events) {
-      const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-      if (!data || data === "[DONE]") continue;
-      try { parsed.push(JSON.parse(data)); } catch { /* Ignore non-JSON SSE frames. */ }
+function parseEvent(event) {
+  const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+  if (!data || data === "[DONE]") return null;
+  try { return JSON.parse(data); } catch { return null; }
+}
+
+async function readSseResponse(response, id) {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
+      }
+      buffer += decoder.decode(value, { stream: true });
+      let boundary;
+      while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
+        const delimiter = buffer.slice(boundary).match(/^\r?\n\r?\n/)[0];
+        const event = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + delimiter.length);
+        const parsed = parseEvent(event);
+        if (parsed && (parsed.id === id || parsed.result || parsed.error)) {
+          await reader.cancel();
+          return parsed;
+        }
+      }
     }
-    return parsed.find((item) => item?.id === id || item?.result || item?.error) || null;
+    const tail = parseEvent(buffer);
+    return tail && (tail.id === id || tail.result || tail.error) ? tail : null;
+  } finally {
+    reader.releaseLock();
   }
+}
+
+async function readRpcResponse(response, id) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("text/event-stream")) return readSseResponse(response, id);
+  const text = await response.text();
+  if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
+    throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
+  }
+  if (!text.trim()) return null;
   try { return JSON.parse(text); } catch {
     throw Object.assign(new Error("MCP server returned an unreadable response"), { code: "invalid_mcp_response", status: 502 });
   }
@@ -50,18 +87,14 @@ export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutM
         method: "POST", headers, body: JSON.stringify(payload), signal: controller.signal, redirect: "error"
       });
       if (response.status === 202 && !payload.id) return { response, result: null };
-      const text = await response.text();
-      if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
-        throw Object.assign(new Error("MCP response exceeded the size limit"), { code: "mcp_response_too_large", status: 502 });
-      }
       if (!response.ok) {
         throw Object.assign(new Error(`MCP server returned HTTP ${response.status}`), { code: "mcp_request_failed", status: 502 });
       }
-      const result = parseRpcResponse(text, response.headers.get("content-type") || "", payload.id);
-      if (result?.error) {
-        throw Object.assign(new Error(result.error.message || "MCP JSON-RPC request failed"), { code: "mcp_rpc_error", status: 502 });
+      const parsed = await readRpcResponse(response, payload.id);
+      if (parsed?.error) {
+        throw Object.assign(new Error(parsed.error.message || "MCP JSON-RPC request failed"), { code: "mcp_rpc_error", status: 502 });
       }
-      return { response, result: result?.result ?? null };
+      return { response, result: parsed?.result ?? null };
     } catch (error) {
       if (error.name === "AbortError") throw Object.assign(new Error("MCP server request timed out"), { code: "mcp_timeout", status: 504 });
       throw error;
@@ -76,7 +109,7 @@ export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutM
       params: {
         protocolVersion: "2025-03-26",
         capabilities: {},
-        clientInfo: { name: "everything-platform", version: "0.2.0" }
+        clientInfo: { name: "everything-platform", version: "0.3.0" }
       }
     });
     if (!result || typeof result !== "object") {
