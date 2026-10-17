@@ -4,6 +4,17 @@ const MAX_TIMEOUT_MS = 90_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
+function nativeProviderBase(baseUrl) {
+  let base;
+  try { base = new URL(baseUrl); }
+  catch { throw Object.assign(new Error("AI provider URL is invalid"), { code: "invalid_provider_url", status: 500 }); }
+  if (base.protocol !== "https:" || base.username || base.password || base.hash || base.search) {
+    throw Object.assign(new Error("Anthropic and Gemini endpoints must use HTTPS without inline credentials or query parameters"), { code: "unsafe_provider_url", status: 500 });
+  }
+  base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
+  return base;
+}
+
 function validateMessages(messages) {
   if (!Array.isArray(messages) || messages.length < 1 || messages.length > 40) {
     throw Object.assign(new Error("messages must contain between 1 and 40 items"), { code: "invalid_messages", status: 400 });
@@ -53,8 +64,7 @@ async function anthropicCompletion({ provider, messages, fetchImpl, timeoutMs })
     messages: normalized.filter((message) => message.role !== "system").map(({ role, content }) => ({ role, content }))
   };
   if (systems.length) body.system = systems.join("\n\n");
-  const base = new URL(provider.baseUrl);
-  base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
+  const base = nativeProviderBase(provider.baseUrl);
   const url = new URL("messages", base);
   const payload = await requestJson({
     url,
