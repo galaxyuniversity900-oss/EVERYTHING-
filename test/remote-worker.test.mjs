@@ -6,8 +6,9 @@ import { createRemoteWorker } from "../remote-worker/server.mjs";
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
 
-function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false } = {}) {
+function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false, failFirstPort = false } = {}) {
   const calls = [];
+  let shouldFailPort = failFirstPort;
   const worker = createRemoteWorker({
     now,
     env: {
@@ -21,6 +22,10 @@ function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false 
       calls.push(args);
       if (args[0] === "run" && delayRun) await new Promise((resolve) => setTimeout(resolve, 25));
       if (args[0] === "run") return { stdout: "container-id" };
+      if (args[0] === "port" && shouldFailPort) {
+        shouldFailPort = false;
+        throw new Error("simulated docker port failure");
+      }
       if (args[0] === "port") return { stdout: "127.0.0.1:34567\n" };
       if (args[0] === "rm" || args[0] === "ps") return { stdout: "" };
       throw new Error("Unexpected container command");
@@ -229,5 +234,26 @@ test("worker reserves capacity during concurrent container startup", async () =>
     assert.deepEqual(results.map((response) => response.status).sort((a, b) => a - b), [201, 429]);
     assert.equal(worker.sessions.size, 1);
     assert.equal(worker.calls.filter((args) => args[0] === "run").length, 1);
+  } finally { await worker.close(); }
+});
+
+
+test("worker rolls back a started container when port discovery fails and releases capacity", async () => {
+  const worker = makeWorker({ maxSessions: 1, failFirstPort: true });
+  const base = await listen(worker);
+  try {
+    const options = {
+      method: "POST",
+      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    };
+    const failed = await fetch(base + "/v1/sessions", options);
+    assert.equal(failed.status, 502);
+    assert.equal((await failed.json()).error.code, "container_runtime_error");
+    assert.equal(worker.sessions.size, 0);
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.some((value) => typeof value === "string" && /^everything-[a-f0-9]{16}$/.test(value))));
+    const retry = await fetch(base + "/v1/sessions", options);
+    assert.equal(retry.status, 201);
+    assert.equal(worker.sessions.size, 1);
   } finally { await worker.close(); }
 });
