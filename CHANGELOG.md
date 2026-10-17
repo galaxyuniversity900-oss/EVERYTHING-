@@ -1,66 +1,41 @@
 # Changelog
 
-## AI provider connection diagnostics
-
-- Added a rate-limited endpoint to check provider model-list connectivity without generating tokens.
-- Added a UI action with latency and configured-model availability feedback.
-- Added protocol-specific checks for OpenAI-compatible, Anthropic, and Gemini endpoints with bounded responses/timeouts and no credential disclosure.
-- Added tests for safe URL handling, provider auth headers, and disabled-mode behavior.
-
-
-## Device-aware runtime profile
-
-- Added browser-local estimates for memory, CPU concurrency, WebGPU exposure, and network constraints.
-- Runtime guidance now favors configured remote execution for constrained devices, and warns against large local models when no worker is configured.
-- Added unit tests and included the new module in the PWA cache and source-size budget.
-
-
-## Security hardening — auth-aware offline cache
-
-- The service worker records whether the server requires authentication without caching the auth response.
-- Offline catalog fallback is denied until authentication is confirmed disabled.
-- Unauthorized catalog responses clear matching cached catalog entries.
-- Added regression tests and included sign-in assets in the browser source-size budget.
-
-
-## 0.5.0 — Verified application catalog
-
-- Expanded the catalog to 50 upstream app entries across office, collaboration, creative, engineering, productivity, finance, business, developer, and games categories.
-- Distinguished published demo links from source-only projects using upstream README link-status notes.
-- Added registry tests for catalog breadth, source attribution, and truthful hosted status.
-
-
 All notable changes to EVERYTHING- are recorded here.
 
-## 0.6.0 — Docker session worker
+## 0.7.0 — AI provider diagnostics
+
+- Added a rate-limited provider connection check that probes model-list endpoints without generating completion tokens.
+- Added an AI panel action with latency and configured-model availability feedback.
+- Added protocol-specific checks for OpenAI-compatible, Anthropic, and Gemini endpoints with bounded responses/timeouts and no credential disclosure.
+- Added tests for URL safety, provider authentication headers, UI wiring, and disabled-mode behavior.
+
+## 0.6.0 — Remote execution foundations
 
 - Added an optional Docker-backed remote worker for administrator-allowlisted app images.
-- Added bearer-authenticated capabilities/session APIs, session URL tokens, WebSocket proxying, and idle/absolute expiry.
-- Added CPU, memory, PID, port-binding, and Linux capability controls for launched containers.
-- Added mocked worker lifecycle tests and deployment guidance for wildcard HTTPS reverse proxies.
-- Documented that the worker requires a dedicated Docker host and that sessions are ephemeral.
+- Added authenticated worker APIs, session URL tokens, HTTP/WebSocket proxying, resource limits, and session expiry.
+- Added device-aware runtime profiles for memory, CPU concurrency, WebGPU exposure, and network constraints.
+- Added auth-aware offline caching that avoids serving cached catalog responses when authentication is required or unknown.
+- Documented the dedicated-host, wildcard HTTPS, and ephemeral-session requirements for remote execution.
 
-## 0.5.0 — Access gate
+## 0.5.0 — Access gate and verified catalog
 
-- Added an optional shared-password sign-in overlay and logout flow.
-- Added HttpOnly, SameSite=Strict in-memory sessions with a 12-hour expiry.
-- Protected API routes when the access gate is enabled and added login rate limiting.
+- Added an optional shared-password sign-in overlay, HttpOnly/SameSite session cookies, rate-limited login, and logout.
 - Added trusted-host checks for HTTPS reverse-proxy deployments.
+- Expanded the app catalog to 50 upstream entries and distinguished hosted demo links from source-only projects.
+- Added a restricted local container workflow and security/deployment documentation.
 
 ## 0.4.0 — Local workspace
 
 - Added browser-local notes, AI prompts, and text snippets using IndexedDB.
 - Added search, edit/delete, JSON import/export, and an explicit handoff into the AI input.
-- Added validation limits and tests for local item imports.
-- Extended offline PWA caching for local workspace assets.
+- Added validation limits and collision-safe import merging.
+- Extended offline PWA caching for local workspace assets and added a low-resource source-asset budget.
 
 ## 0.3.0 — Foundation
 
 - Added a lightweight Node.js workspace server and searchable app catalog.
 - Added installable PWA shell and offline cache for static UI/catalog data.
 - Added opt-in OpenAI-compatible chat, plus native Anthropic and Gemini text-chat adapters.
-- Added server-side provider registry, task-aware routing, optional fallback, and local compatible endpoint support.
+- Added server-side provider-key references, task-aware routing, optional fallback, and local compatible endpoint support.
 - Added MCP Streamable HTTP discovery and explicitly confirmed tool execution.
-- Added remote runtime capability discovery and session adapter with an external worker contract.
-- Added capability assessment, automated tests, GitHub Actions CI, and security/contributor documentation.
-- Documented current boundaries: no bundled LLM weights, remote worker, authentication, or production storage.
+- Added remote runtime capability discovery, session adapter, tests, CI, and security documentation.
