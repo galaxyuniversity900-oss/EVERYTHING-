@@ -9,6 +9,8 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Dependency-free Node.js HTTP server and responsive app directory.
 - Verified hosted-app links plus source-only entries where a hosted URL is not verified.
 - Searchable catalog and health API.
+- Device-local favorites and recently opened apps, plus a persistent compact layout for lower-end devices.
+- Installable PWA shell with versioned offline caching; API responses for AI, MCP, and remote sessions are never cached.
 - Browser-local notes, reusable prompts, and text snippets stored in IndexedDB, with search, edit/delete, JSON import/export, and a deliberate handoff into AI input. Local items are not synced or uploaded automatically.
 - Opt-in OpenAI-compatible chat endpoint. Compatible localhost inference servers can be used without a key; cloud providers require a server-side key.
 - Browser capability assessment for WASM and WebGPU.

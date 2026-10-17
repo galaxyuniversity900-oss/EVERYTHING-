@@ -38,6 +38,14 @@
         <div><p class="eyebrow">APP DIRECTORY</p><h2 id="catalog-title">Pick a workspace</h2></div>
         <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search apps or categories" autocomplete="off" aria-label="Search apps or categories"></label>
       </div>
+      <div class="workspace-controls" aria-label="Personal workspace controls">
+        <div class="view-switch" role="group" aria-label="Application view">
+          <button class="view-button" type="button" data-view="all" aria-pressed="true">All apps</button>
+          <button class="view-button" type="button" data-view="favorites" aria-pressed="false">★ Favorites <span id="favorite-count">0</span></button>
+          <button class="view-button" type="button" data-view="recent" aria-pressed="false">Recently used</button>
+        </div>
+        <div class="workspace-actions"><label class="compact-toggle"><input id="compact-mode" type="checkbox"><span>Low-resource layout</span></label><button id="install-app" class="install-button" type="button" hidden>Install workspace</button></div>
+      </div>
       <nav class="filters" id="filters" aria-label="Filter applications"></nav>
       <div id="apps" class="app-grid" aria-live="polite"><p class="empty">Loading applications…</p></div>
       <p class="catalog-note">External apps open on their own websites. They are not hosted by this project. Availability, features, accounts and data policies are controlled by each provider.</p>
