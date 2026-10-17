@@ -49,6 +49,7 @@ jobs:
           node --check remote-worker/server.mjs
           node --check src/registry.mjs
           node --check src/security/auth.mjs
+          node --check src/ai/concurrency-gate.mjs
           node --check src/ai/openai-compatible.mjs
           node --check src/ai/provider-registry.mjs
           node --check src/ai/provider-adapters.mjs
