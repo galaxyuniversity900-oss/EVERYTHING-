@@ -73,13 +73,16 @@ async function readRpcResponse(response, id) {
   }
 }
 
-export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutMs = 15_000 } = {}) {
+export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutMs = 15_000, signal } = {}) {
   const endpoint = configuredUrl(env);
   const token = env.MCP_ACCESS_TOKEN || "";
 
   async function post(payload, sessionId) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(1000, Math.min(timeoutMs, 30_000)));
+    const abortFromCaller = () => controller.abort();
+    if (signal?.aborted) controller.abort();
+    else signal?.addEventListener("abort", abortFromCaller, { once: true });
     const headers = {
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
@@ -101,10 +104,14 @@ export function createMcpClient({ env = process.env, fetchImpl = fetch, timeoutM
       }
       return { response, result: parsed?.result ?? null };
     } catch (error) {
-      if (error.name === "AbortError") throw Object.assign(new Error("MCP server request timed out"), { code: "mcp_timeout", status: 504 });
+      if (error.name === "AbortError") {
+        if (signal?.aborted) throw Object.assign(new Error("MCP request was cancelled"), { code: "mcp_cancelled", status: 499 });
+        throw Object.assign(new Error("MCP server request timed out"), { code: "mcp_timeout", status: 504 });
+      }
       throw error;
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abortFromCaller);
     }
   }
 
