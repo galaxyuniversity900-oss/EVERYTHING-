@@ -12,7 +12,8 @@ The long-term goal is to make useful software accessible on modest devices witho
 - Device-local favorites and recently opened apps, plus a persistent compact layout for lower-end devices.
 - Installable PWA shell with versioned offline caching; API responses for AI, MCP, and remote sessions are never cached.
 - Browser-local notes, reusable prompts, and text snippets stored in IndexedDB, with search, edit/delete, JSON import/export, and a deliberate handoff into AI input. Local items are not synced or uploaded automatically.
-- Opt-in OpenAI-compatible chat endpoint. Compatible localhost inference servers can be used without a key; cloud providers require a server-side key.
+- Opt-in AI gateway for OpenAI-compatible, Anthropic, and Gemini text-chat APIs. Compatible localhost inference servers can be used without a key; cloud providers require server-side keys.
+- A rate-limited provider connection check that probes model-list endpoints without generating completion tokens and reports latency/model availability.
 - Browser capability assessment for WASM/WebGPU plus approximate device-memory, CPU, and network constraints to recommend browser-native versus configured remote execution.
 - Configured MCP Streamable HTTP client with tool discovery and explicit confirmation before tool calls.
 - Remote runtime provider adapter with supported-app discovery, session creation, session closing, and server-side bearer token support.
