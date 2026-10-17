@@ -6,7 +6,7 @@ import { createRemoteWorker } from "../remote-worker/server.mjs";
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
 
-function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false, failFirstPort = false, appConfigs = apps } = {}) {
+function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false, failFirstPort = false, appConfigs = apps, probePortImpl = async () => true } = {}) {
   const calls = [];
   let shouldFailPort = failFirstPort;
   const worker = createRemoteWorker({
@@ -18,6 +18,7 @@ function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false,
       WORKER_APPS_JSON: JSON.stringify(appConfigs),
       WORKER_MAX_SESSIONS: String(maxSessions)
     },
+    probePortImpl,
     execFileImpl: async (_command, args) => {
       calls.push(args);
       if (args[0] === "run" && delayRun) await new Promise((resolve) => setTimeout(resolve, 25));
@@ -318,4 +319,38 @@ test("worker rejects shared-memory limits outside the configured safe range", ()
       }
     }), /shmSize must be between 64m and 2g/);
   }
+});
+
+test("worker rolls back a container when the application port never becomes ready", async () => {
+  const worker = makeWorker({ maxSessions: 1, probePortImpl: async () => false });
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    });
+    assert.equal(response.status, 504);
+    assert.equal((await response.json()).error.code, "container_startup_timeout");
+    assert.equal(worker.sessions.size, 0);
+    const runArgs = worker.calls.find((args) => args[0] === "run");
+    const containerName = runArgs[runArgs.indexOf("--name") + 1];
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes(containerName)));
+  } finally { await worker.close(); }
+});
+
+test("worker clamps the configured application startup timeout", () => {
+  const worker = createRemoteWorker({
+    env: {
+      WORKER_TOKEN: token,
+      WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
+      WORKER_SESSION_BASE_URL: "https://sessions.example.test",
+      WORKER_STARTUP_TIMEOUT_SECONDS: "999",
+      WORKER_APPS_JSON: JSON.stringify(apps)
+    },
+    probePortImpl: async () => true,
+    execFileImpl: async () => ({ stdout: "" })
+  });
+  assert.equal(worker.config.startupTimeoutMs, 60_000);
+  void worker.close();
 });
