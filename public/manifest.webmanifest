@@ -1,0 +1,13 @@
+{
+  "name": "EVERYTHING- Workspace",
+  "short_name": "EVERYTHING-",
+  "description": "A lightweight workspace for browser apps, AI providers, and remote sessions.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#171914",
+  "theme_color": "#171914",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
