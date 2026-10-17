@@ -2,6 +2,13 @@
 
 All notable changes to EVERYTHING- are recorded here.
 
+## 0.4.0 — Local workspace
+
+- Added browser-local notes, AI prompts, and text snippets using IndexedDB.
+- Added search, edit/delete, JSON import/export, and an explicit handoff into the AI input.
+- Added validation limits and tests for local item imports.
+- Extended offline PWA caching for local workspace assets.
+
 ## 0.3.0 — Foundation
 
 - Added a lightweight Node.js workspace server and searchable app catalog.
