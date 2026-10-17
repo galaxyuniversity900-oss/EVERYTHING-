@@ -50,7 +50,6 @@ test("native provider adapters reject missing credentials", async () => {
 });
 
 
-import { checkProviderConnection } from "../src/ai/provider-adapters.mjs";
 
 test("OpenAI-compatible connection check uses the models endpoint without generating tokens", async () => {
   let requestedUrl;
