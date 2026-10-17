@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getApps, apps } from "./src/registry.mjs";
 import { routeAIChat } from "./src/ai/router.mjs";
-import { publicAIProviderRegistry } from "./src/ai/provider-registry.mjs";
+import { getAIProviderRegistry, publicAIProviderRegistry } from "./src/ai/provider-registry.mjs";
+import { checkProviderConnection } from "./src/ai/provider-adapters.mjs";
 import { assessCapabilities } from "./src/runtime/capabilities.mjs";
 import { createMcpClient } from "./src/mcp/client.mjs";
 import { createRemoteRuntime } from "./src/runtime/remote-provider.mjs";
@@ -218,6 +219,31 @@ const server = createServer(async (req, res) => {
     } catch (error) {
       if (error.code === "ENOENT" || error.code === "EISDIR") return sendJson(res, 404, { error: "not_found" });
       return sendJson(res, 500, { error: "internal_error" });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ai/providers/check") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!aiConfigured) return sendJson(res, 503, { error: { code: "ai_not_configured", message: "AI is disabled. Configure a provider on the server first." } });
+    if (!rateLimit(req, rateBuckets, 8)) return sendJson(res, 429, { error: { code: "provider_check_rate_limited", message: "Too many provider checks. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || typeof body !== "object") throw Object.assign(new Error("Request must be a JSON object"), { status: 400, code: "invalid_request" });
+      const registry = getAIProviderRegistry();
+      const providerId = typeof body.providerId === "string" && body.providerId ? body.providerId : registry.defaultProviderId;
+      const provider = registry.providers.find((item) => item.id === providerId && item.configured);
+      if (!provider) throw Object.assign(new Error("The requested provider is not configured"), { status: 400, code: "unknown_provider" });
+      const result = await checkProviderConnection({ provider });
+      return sendJson(res, 200, {
+        ...result,
+        providerId: provider.id,
+        providerName: provider.name,
+        protocol: provider.protocol || "openai-compatible",
+        model: provider.model
+      });
+    } catch (error) {
+      return routeError(res, error, "provider_connection_failed");
     }
   }
 
