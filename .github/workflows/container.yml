@@ -20,6 +20,7 @@ on:
       - "server.mjs"
       - "src/**"
       - "public/**"
+      - "remote-worker/**"
       - ".github/workflows/container.yml"
   workflow_dispatch:
 
