@@ -1,7 +1,7 @@
-const CACHE_NAME = "everything-shell-v2";
+const CACHE_NAME = "everything-shell-v3";
 const SHELL_ASSETS = [
-  "/", "/styles.css", "/ai.css", "/mcp.css", "/remote.css",
-  "/app.js", "/ai.js", "/runtime.js", "/mcp.js", "/remote.js", "/workspace.js", "/workspace-core.js", "/workspace.css",
+  "/", "/styles.css", "/auth.css", "/ai.css", "/mcp.css", "/remote.css",
+  "/app.js", "/auth.js", "/ai.js", "/runtime.js", "/mcp.js", "/remote.js", "/workspace.js", "/workspace-core.js", "/workspace.css",
   "/manifest.webmanifest", "/icon.svg"
 ];
 
