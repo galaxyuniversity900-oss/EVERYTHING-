@@ -102,3 +102,204 @@ function sameOriginIfProvided(req, res) {
   }
 }
 
+async function routeError(res, error, fallbackCode) {
+  const status = Number.isInteger(error.status) ? error.status : 502;
+  return sendJson(res, status, { error: { code: error.code || fallbackCode, message: error.message || "Request failed." } });
+}
+
+const server = createServer(async (req, res) => {
+  if (!sameOriginIfProvided(req, res)) return;
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+  if (req.method === "GET" && url.pathname === "/api/auth/status") {
+    const authenticated = authManager.enabled ? authManager.isAuthenticated(req) : true;
+    return sendJson(res, 200, { required: authManager.enabled, authenticated });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/login") {
+    if (!authManager.enabled) return sendJson(res, 400, { error: { code: "auth_not_configured", message: "No access password is configured on this server." } });
+    if (!rateLimit(req, authRateBuckets, 5)) return sendJson(res, 429, { error: { code: "login_rate_limited", message: "Too many login attempts. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || !authManager.verifyPassword(body.password)) {
+        return sendJson(res, 401, { error: { code: "invalid_credentials", message: "The password was not accepted." } });
+      }
+      const token = authManager.createSession();
+      res.setHeader("set-cookie", authManager.cookie(token));
+      return sendJson(res, 200, { authenticated: true });
+    } catch (error) {
+      return routeError(res, error, "login_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+    authManager.destroySession(req);
+    res.setHeader("set-cookie", authManager.clearCookie());
+    return sendJson(res, 200, { authenticated: !authManager.enabled });
+  }
+
+  if (authManager.enabled && url.pathname.startsWith("/api/") && !authManager.isAuthenticated(req)) {
+    return sendJson(res, 401, { error: { code: "authentication_required", message: "Sign in to access this API." } });
+  }
+
+  if (req.method === "GET" || req.method === "HEAD") {
+    if (url.pathname === "/api/health") {
+      return sendJson(res, 200, { status: "ok", service: "everything-platform", version: "0.4.0" });
+    }
+    if (url.pathname === "/api/apps") {
+      const results = getApps({ category: url.searchParams.get("category") || "All", query: url.searchParams.get("q") || "" });
+      return sendJson(res, 200, { count: results.length, categories: ["All", ...new Set(apps.map((app) => app.category))], apps: results });
+    }
+    if (url.pathname === "/api/ai/providers") {
+      return sendJson(res, 200, {
+        ...aiStatus,
+        setup: aiConfigured ? null : "Set AI_API_ENABLED=true and configure at least one provider on the server. Never put keys in browser code."
+      });
+    }
+    if (url.pathname === "/api/runtime/capabilities") {
+      const result = assessCapabilities({
+        wasm: url.searchParams.get("wasm") === "1",
+        webgpu: url.searchParams.get("webgpu") === "1",
+        network: url.searchParams.get("network") !== "0",
+        remoteAvailable: remoteConfigured && url.searchParams.get("network") !== "0"
+      });
+      return sendJson(res, 200, { ...result, remoteSessionAdapterImplemented: true, remoteRuntimeConfigured: remoteConfigured });
+    }
+    if (url.pathname === "/api/mcp/status") {
+      return sendJson(res, 200, {
+        configured: mcpConfigured,
+        setup: mcpConfigured ? null : "Set MCP_SERVER_URL on the server. Optional bearer authentication uses MCP_ACCESS_TOKEN."
+      });
+    }
+    if (url.pathname === "/api/runtime/remote/status") {
+      return sendJson(res, 200, {
+        configured: remoteConfigured,
+        setup: remoteConfigured ? null : "Configure REMOTE_RUNTIME_URL and optional REMOTE_RUNTIME_TOKEN on the server."
+      });
+    }
+    if (url.pathname === "/api/runtime/remote/apps") {
+      if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+      try {
+        const result = await createRemoteRuntime().capabilities();
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return routeError(res, error, "remote_capabilities_failed");
+      }
+    }
+    if (url.pathname === "/api/mcp/tools") {
+      if (!mcpConfigured) return sendJson(res, 503, { error: { code: "mcp_not_configured", message: "Configure MCP_SERVER_URL on the server first." } });
+      try {
+        const result = await createMcpClient().listTools();
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return routeError(res, error, "mcp_list_failed");
+      }
+    }
+
+    let pathname;
+    try { pathname = decodeURIComponent(url.pathname); }
+    catch { return sendJson(res, 400, { error: "invalid_path" }); }
+    if (pathname === "/") pathname = "/index.html";
+    const filePath = path.resolve(publicDir, `.${pathname}`);
+    if (!filePath.startsWith(publicDir + path.sep) && filePath !== publicDir) {
+      return sendJson(res, 403, { error: "forbidden" });
+    }
+    try {
+      const body = await readFile(filePath);
+      const type = contentTypes[path.extname(filePath)] || "application/octet-stream";
+      res.writeHead(200, {
+        "content-type": type,
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "cache-control": "no-cache"
+      });
+      return res.end(req.method === "HEAD" ? undefined : body);
+    } catch (error) {
+      if (error.code === "ENOENT" || error.code === "EISDIR") return sendJson(res, 404, { error: "not_found" });
+      return sendJson(res, 500, { error: "internal_error" });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/ai/chat") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!aiConfigured) return sendJson(res, 503, { error: { code: "ai_not_configured", message: "AI is disabled. Configure it explicitly on the server first." } });
+    if (!rateLimit(req, rateBuckets, 12)) return sendJson(res, 429, { error: { code: "rate_limited", message: "Too many AI requests. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || typeof body !== "object") throw Object.assign(new Error("Request must be a JSON object"), { status: 400, code: "invalid_request" });
+      const result = await routeAIChat({ messages: body.messages, providerId: body.providerId, task: body.task });
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return routeError(res, error, "ai_request_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/mcp/tools/call") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!mcpConfigured) return sendJson(res, 503, { error: { code: "mcp_not_configured", message: "Configure MCP_SERVER_URL on the server first." } });
+    if (!rateLimit(req, mcpRateBuckets, 5)) return sendJson(res, 429, { error: { code: "mcp_rate_limited", message: "Too many MCP tool calls. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || body.confirmed !== true) {
+        return sendJson(res, 400, { error: { code: "confirmation_required", message: "Review the tool name and arguments, then explicitly confirm before execution." } });
+      }
+      const result = await createMcpClient().callTool(body.name, body.arguments ?? {});
+      return sendJson(res, 200, { result });
+    } catch (error) {
+      return routeError(res, error, "mcp_tool_call_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/runtime/remote/sessions") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+    if (!rateLimit(req, remoteRateBuckets, 5)) return sendJson(res, 429, { error: { code: "remote_runtime_rate_limited", message: "Too many session requests. Wait a minute and try again." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || body.confirmed !== true) return sendJson(res, 400, { error: { code: "confirmation_required", message: "Explicitly confirm before creating a remote session." } });
+      const runtime = createRemoteRuntime();
+      const supported = await runtime.capabilities();
+      if (!supported.apps.some((app) => app.id === body.appId)) {
+        return sendJson(res, 400, { error: { code: "remote_app_not_supported", message: "The configured runtime does not list this app as supported." } });
+      }
+      const session = await runtime.createSession(body.appId);
+      activeRemoteSessions.set(session.id, { appId: session.appId, createdAt: Date.now() });
+      return sendJson(res, 201, session);
+    } catch (error) {
+      return routeError(res, error, "remote_session_create_failed");
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/runtime/remote/sessions/close") {
+    if (!sameOriginIfProvided(req, res)) return;
+    if (!remoteConfigured) return sendJson(res, 503, { error: { code: "remote_runtime_not_configured", message: "Configure REMOTE_RUNTIME_URL on the server first." } });
+    if (!req.headers["content-type"]?.includes("application/json")) return sendJson(res, 415, { error: { code: "json_required", message: "Content-Type must be application/json." } });
+    try {
+      const body = await readJsonBody(req);
+      if (!body || body.confirmed !== true) return sendJson(res, 400, { error: { code: "confirmation_required", message: "Explicitly confirm before closing a remote session." } });
+      if (!activeRemoteSessions.has(body.id)) return sendJson(res, 404, { error: { code: "remote_session_not_found", message: "This session was not created by this running workspace process." } });
+      const result = await createRemoteRuntime().deleteSession(body.id);
+      activeRemoteSessions.delete(body.id);
+      return sendJson(res, 200, result);
+    } catch (error) {
+      return routeError(res, error, "remote_session_close_failed");
+    }
+  }
+
+  res.setHeader("allow", "GET, HEAD, POST");
+  return sendJson(res, 405, { error: { code: "method_not_allowed", message: "Method not allowed." } });
+});
+
+server.listen(port, host, () => {
+  console.log(`EVERYTHING- running at http://${host}:${port}`);
+});
+
+function shutdown() {
+  server.close(() => process.exit(0));
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
