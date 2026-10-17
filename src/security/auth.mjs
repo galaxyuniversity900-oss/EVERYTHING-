@@ -44,6 +44,9 @@ export function createAuthManager({ password = "", cookieSecure = false, now = (
   }
 
   function createSession() {
+    for (const [existingToken, expiresAt] of sessions) {
+      if (expiresAt <= now()) sessions.delete(existingToken);
+    }
     const token = tokenFactory();
     if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Session token factory returned an invalid token");
     sessions.set(token, now() + SESSION_TTL_MS);
