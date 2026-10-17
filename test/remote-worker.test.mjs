@@ -6,7 +6,7 @@ import { createRemoteWorker } from "../remote-worker/server.mjs";
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
 
-function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false, failFirstPort = false } = {}) {
+function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false, failFirstPort = false, appConfigs = apps } = {}) {
   const calls = [];
   let shouldFailPort = failFirstPort;
   const worker = createRemoteWorker({
@@ -15,7 +15,7 @@ function makeWorker({ maxSessions = 2, now = () => Date.now(), delayRun = false,
       WORKER_TOKEN: token,
       WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
       WORKER_SESSION_BASE_URL: "https://sessions.example.test",
-      WORKER_APPS_JSON: JSON.stringify(apps),
+      WORKER_APPS_JSON: JSON.stringify(appConfigs),
       WORKER_MAX_SESSIONS: String(maxSessions)
     },
     execFileImpl: async (_command, args) => {
@@ -256,4 +256,32 @@ test("worker rolls back a started container when port discovery fails and releas
     assert.equal(retry.status, 201);
     assert.equal(worker.sessions.size, 1);
   } finally { await worker.close(); }
+});
+
+
+test("worker allocates GPUs only when an administrator configures them", async () => {
+  const worker = makeWorker({ appConfigs: [{ ...apps[0], gpus: 1 }] });
+  const base = await listen(worker);
+  try {
+    const response = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+      body: JSON.stringify({ appId: "desktop" })
+    });
+    assert.equal(response.status, 201);
+    assert.ok(worker.calls.some((args) => args[0] === "run" && args.includes("--gpus") && args.includes("1")));
+  } finally { await worker.close(); }
+});
+
+test("worker rejects invalid GPU allocation counts in app configuration", () => {
+  for (const gpus of [-1, 1.5, 5, "not-a-number"]) {
+    assert.throws(() => createRemoteWorker({
+      env: {
+        WORKER_TOKEN: token,
+        WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
+        WORKER_SESSION_BASE_URL: "https://sessions.example.test",
+        WORKER_APPS_JSON: JSON.stringify([{ ...apps[0], gpus }])
+      }
+    }), /GPUs must be an integer between 0 and 4/);
+  }
 });
