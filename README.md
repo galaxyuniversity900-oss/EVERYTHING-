@@ -49,7 +49,7 @@ npm test
 npm start
 ```
 
-Open `http://127.0.0.1:8787`. The server binds to localhost by default. See [the Android/Termux guide](docs/termux-android.md) for running the workspace on a phone. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
+Open `http://127.0.0.1:8787`. The server binds to localhost by default. See [the Android/Termux guide](docs/termux-android.md) for running the workspace on a phone. Do not expose it publicly until you configure the shared-password gate, HTTPS reverse proxy, durable rate limiting, monitoring, and a deployment security review. A restricted local Docker Compose deployment is documented in [docs/local-container.md](docs/local-container.md).
 
 ## Optional access gate
 
