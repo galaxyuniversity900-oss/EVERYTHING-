@@ -5,9 +5,10 @@ import { createRemoteWorker } from "../remote-worker/server.mjs";
 const token = "worker-token-value-that-is-at-least-32-bytes-long";
 const apps = [{ id: "desktop", name: "Desktop", description: "Containerized desktop", image: "example/desktop:stable", port: 3000, memory: "1g", cpus: 1, pids: 128 }];
 
-function makeWorker({ maxSessions = 2 } = {}) {
+function makeWorker({ maxSessions = 2, now = () => Date.now() } = {}) {
   const calls = [];
   const worker = createRemoteWorker({
+    now,
     env: {
       WORKER_TOKEN: token,
       WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
@@ -100,5 +101,44 @@ test("worker enforces the configured concurrent session limit", async () => {
     assert.equal(first.status, 201);
     const second = await fetch(`${base}/v1/sessions`, options);
     assert.equal(second.status, 429);
+  } finally { await worker.close(); }
+});
+
+
+test("worker expires absolute-TTL and idle sessions and removes their containers", async () => {
+  let clock = 10_000;
+  const worker = makeWorker({ now: () => clock });
+  const base = await listen(worker);
+  try {
+    const create = async () => {
+      const response = await fetch(`${base}/v1/sessions`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ appId: "desktop" })
+      });
+      assert.equal(response.status, 201);
+      return response.json();
+    };
+
+    const absolute = await create();
+    clock += 60 * 60 * 1000;
+    const absoluteExpired = await fetch(`${base}/`, {
+      headers: { host: new URL(absolute.url).host, "x-forwarded-proto": "https" }
+    });
+    assert.equal(absoluteExpired.status, 404);
+    assert.equal(worker.sessions.size, 0);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes(`everything-${absolute.id}`)));
+
+    clock += 1;
+    const idle = await create();
+    clock += 15 * 60 * 1000;
+    const idleExpired = await fetch(`${base}/`, {
+      headers: { host: new URL(idle.url).host, "x-forwarded-proto": "https" }
+    });
+    assert.equal(idleExpired.status, 404);
+    assert.equal(worker.sessions.size, 0);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(worker.calls.some((args) => args[0] === "rm" && args.includes(`everything-${idle.id}`)));
   } finally { await worker.close(); }
 });
