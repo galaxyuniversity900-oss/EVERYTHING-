@@ -133,6 +133,10 @@ Use **Test connection** in the AI panel to verify the selected provider endpoint
 
 Restart after changing `.env`. Local endpoints and selected models must already be running; this project does not download model weights. Remote providers must use HTTPS; HTTP is allowed only for loopback endpoints. Never commit `.env` or put provider keys in browser code. Messages are sent to the selected provider, so review its privacy and retention policy before sending sensitive data. AI is disabled by default.
 
+### Keeping model inference responsive on low-resource servers
+
+The AI gateway limits simultaneous chat requests using `AI_MAX_CONCURRENT_REQUESTS` (default `2`; minimum `1`, maximum `16`). For a CPU-only Ollama server, start with `AI_MAX_CONCURRENT_REQUESTS=1` so overlapping requests return a clear `429 ai_busy` response rather than allowing an unbounded queue of expensive generation work. The slot is released even when the provider errors or the client request fails. This is a per-process limit; it is not a distributed limit across multiple server replicas.
+
 ## Optional MCP tools
 
 Configure one trusted MCP Streamable HTTP server:
