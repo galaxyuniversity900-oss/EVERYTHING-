@@ -19,6 +19,27 @@ function addMessage(role, content) {
   output.scrollTop = output.scrollHeight;
 }
 
+function trimHistory() {
+  history = history.slice(-40);
+  let size = history.reduce((sum, message) => sum + message.content.length, 0);
+  while (history.length > 2 && size > 60_000) {
+    size -= history.shift().content.length;
+  }
+}
+
+function requestContext(task) {
+  let messages = history.slice(-40);
+  const request = () => {
+    const body = { messages, task };
+    if (providerSelect.value) body.providerId = providerSelect.value;
+    return body;
+  };
+  while (messages.length > 1 && new TextEncoder().encode(JSON.stringify(request())).length > 36 * 1024) {
+    messages = messages.slice(1);
+  }
+  return request();
+}
+
 async function checkProvider() {
   try {
     const response = await fetch("/api/ai/providers");
@@ -54,25 +75,25 @@ form.addEventListener("submit", async (event) => {
   const content = input.value.trim();
   if (!content || sendButton.disabled) return;
   history.push({ role: "user", content });
+  trimHistory();
   addMessage("user", content);
   input.value = "";
   sendButton.disabled = true;
   status.textContent = "Waiting for the selected AI route…";
   try {
-    const request = { messages: history, task: taskSelect.value };
-    if (providerSelect.value) request.providerId = providerSelect.value;
     const response = await fetch("/api/ai/chat", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(request)
+      body: JSON.stringify(requestContext(taskSelect.value))
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "AI request failed");
     history.push({ role: "assistant", content: data.content });
+    trimHistory();
     addMessage("assistant", data.content);
     status.textContent = `Response from ${data.providerName || data.providerId} · ${data.model}`;
   } catch (error) {
-    history.pop();
+    if (history.at(-1)?.role === "user") history.pop();
     status.textContent = error.message;
   } finally {
     sendButton.disabled = providerSelect.options.length < 2;
