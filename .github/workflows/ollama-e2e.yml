@@ -62,28 +62,27 @@ jobs:
             if (data.status !== "ok") process.exit(1);
           '
 
-      - name: Wait for the model pull and verify provider connectivity
+      - name: Wait for model pull and verify provider connectivity
         shell: bash
         run: |
           set -euo pipefail
           ready=0
           for attempt in $(seq 1 180); do
-            status=$(curl --silent --output /tmp/provider-check.json --write-out '%{http_code}' \
-              -X POST http://127.0.0.1:8787/api/ai/providers/check \
-              -H 'content-type: application/json' \
-              --data '{"providerId":"ollama"}' || true)
-            if [ "$status" = "200" ] && node --input-type=module -e '
-              import fs from "node:fs";
-              const d = JSON.parse(fs.readFileSync("/tmp/provider-check.json", "utf8"));
-              if (d.ok === true && d.modelListed === true && d.model === "qwen2.5:0.5b") process.exit(0);
-              process.exit(1);
-            '; then
+            if docker compose exec -T ollama ollama list | grep -Fq 'qwen2.5:0.5b'; then
               ready=1
               break
             fi
             sleep 5
           done
           test "$ready" = "1"
+          curl --fail --silent -X POST http://127.0.0.1:8787/api/ai/providers/check \
+            -H 'content-type: application/json' \
+            --data '{"providerId":"ollama"}' > /tmp/provider-check.json
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const d = JSON.parse(fs.readFileSync("/tmp/provider-check.json", "utf8"));
+            if (d.ok !== true || d.modelListed !== true || d.model !== "qwen2.5:0.5b") process.exit(1);
+          '
           docker compose exec -T ollama ollama list
 
       - name: Generate a real response using local model weights
