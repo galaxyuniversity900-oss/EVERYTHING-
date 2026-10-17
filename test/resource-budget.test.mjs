@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const assets = [
-  "public/index.html", "public/styles.css", "public/ai.css", "public/mcp.css",
-  "public/remote.css", "public/workspace.css", "public/app.js", "public/ai.js",
+  "public/index.html", "public/styles.css", "public/auth.css", "public/ai.css", "public/mcp.css",
+  "public/remote.css", "public/workspace.css", "public/app.js", "public/auth.js", "public/ai.js",
   "public/runtime.js", "public/mcp.js", "public/remote.js", "public/workspace.js",
   "public/workspace-core.js", "public/sw.js", "public/manifest.webmanifest", "public/icon.svg"
 ];
