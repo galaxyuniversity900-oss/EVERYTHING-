@@ -2,28 +2,31 @@ const ID_PATTERN = /^[a-zA-Z0-9_.-]{1,64}$/;
 const ENV_PATTERN = /^[A-Z_][A-Z0-9_]{0,127}$/;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
-function isLocalEndpoint(baseUrl) {
+function endpointSafety(baseUrl) {
   try {
     const url = new URL(baseUrl);
-    return url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname);
-  } catch { return false; }
+    const local = LOOPBACK_HOSTS.has(url.hostname) && url.protocol === "http:";
+    const secureRemote = url.protocol === "https:";
+    const safe = (local || secureRemote) && !url.username && !url.password && !url.hash && !url.search;
+    return { safe, local };
+  } catch { return { safe: false, local: false }; }
 }
 
 function configuredProvider(profile, env, globallyEnabled) {
   const id = typeof profile.id === "string" ? profile.id : "";
-  const name = typeof profile.name === "string" ? profile.name : id;
-  const baseUrl = typeof profile.baseUrl === "string" ? profile.baseUrl : "";
-  const model = typeof profile.model === "string" ? profile.model : "";
+  const name = (typeof profile.name === "string" ? profile.name : id).slice(0, 120);
+  const baseUrl = typeof profile.baseUrl === "string" ? profile.baseUrl.slice(0, 2048) : "";
+  const model = typeof profile.model === "string" ? profile.model.slice(0, 160) : "";
   const apiKeyEnv = typeof profile.apiKeyEnv === "string" && ENV_PATTERN.test(profile.apiKeyEnv) ? profile.apiKeyEnv : "";
   const apiKey = apiKeyEnv ? env[apiKeyEnv] || "" : "";
-  const local = isLocalEndpoint(baseUrl);
+  const safety = endpointSafety(baseUrl);
   const enabled = profile.enabled !== false;
   const capabilities = Array.isArray(profile.capabilities)
     ? [...new Set(profile.capabilities.filter((value) => typeof value === "string" && ID_PATTERN.test(value)))].slice(0, 20)
     : ["chat"];
   return {
-    id, name, baseUrl, model, apiKeyEnv, apiKey, local, enabled, capabilities,
-    configured: Boolean(globallyEnabled && enabled && baseUrl && model && (apiKey || local))
+    id, name, baseUrl, model, apiKeyEnv, apiKey, local: safety.local, enabled, capabilities,
+    configured: Boolean(globallyEnabled && enabled && safety.safe && baseUrl && model && (apiKey || safety.local))
   };
 }
 
@@ -53,7 +56,7 @@ export function getAIProviderRegistry(env = process.env) {
   const seen = new Set();
   const providers = [];
   for (const profile of profiles) {
-    if (!profile || typeof profile !== "object" || !ID_PATTERN.test(profile.id || "") || seen.has(profile.id)) continue;
+    if (!profile || typeof profile !== "object" || typeof profile.id !== "string" || !ID_PATTERN.test(profile.id) || seen.has(profile.id)) continue;
     if (typeof profile.baseUrl !== "string" || typeof profile.model !== "string") continue;
     seen.add(profile.id);
     providers.push(configuredProvider(profile, env, globallyEnabled));
