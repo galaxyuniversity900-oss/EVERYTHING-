@@ -47,7 +47,8 @@ jobs:
         run: cp remote-worker/.env.example remote-worker/.env
       - name: Validate remote worker Compose configuration
         run: |
-          export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+          DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+          export DOCKER_GID
           docker compose -f remote-worker/compose.yaml config --quiet
       - name: Build remote worker image
         run: docker compose -f remote-worker/compose.yaml build
@@ -70,7 +71,7 @@ jobs:
           WORKER_PID=$!
           trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT
 
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:18788/api/health > /tmp/worker-health.json; then break; fi
             sleep 2
           done
@@ -106,7 +107,7 @@ jobs:
           ')
 
           PROXY_STATUS=000
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             PROXY_STATUS=$(curl --silent --output /tmp/worker-proxy.html --write-out '%{http_code}' \
               -H "Host: $SESSION_HOST" \
               -H 'X-Forwarded-Proto: https' \
@@ -133,7 +134,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8787/api/health > /tmp/health.json; then break; fi
             sleep 1
           done
