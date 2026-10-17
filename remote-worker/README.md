@@ -18,6 +18,12 @@ Sessions are ephemeral. Containers are removed on close, idle timeout, absolute 
 
 Pre-pull the approved images before launching the worker. This avoids image-pull timeouts during session creation.
 
+### Optional NVIDIA GPU allocation
+
+An administrator can add `"gpus": 1` (or an integer from `1` to `4`) to an approved app entry in `WORKER_APPS_JSON`. The worker then adds Docker's `--gpus N` option only for that app. The default is `0`, so existing app configurations remain CPU-only.
+
+GPU allocation requires a Linux host with compatible NVIDIA drivers and the NVIDIA Container Toolkit configured for Docker. It does not install drivers or the toolkit, guarantee that an image supports CUDA, or apply to Android/Termux and Docker Desktop. Keep GPU access limited to reviewed images because GPU-enabled containers still share the host's hardware and driver stack.
+
 ## Containerized worker setup (dedicated Linux host)
 
 The optional Compose deployment removes the need to install Node.js manually on the worker host. It still requires Docker Engine, a Linux host, HTTPS reverse-proxy/DNS configuration, and reviewed container images.
@@ -159,4 +165,4 @@ The session URL contains a short-lived bearer token in its hostname. Session-hos
 - HTTPS is required for non-local API and all session-viewer hosts.
 - Sessions have an absolute TTL and an idle timeout.
 - WebSocket upgrades are proxied for browser-based desktop apps.
-- No persistence, per-user isolation, file recovery, GPU passthrough, or automatic model downloads. Those require separate deployment and storage decisions.
+- No persistence, per-user isolation, or file recovery. GPU allocation is optional and administrator-controlled; automatic model downloads are not performed.
