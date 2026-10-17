@@ -27,6 +27,7 @@ jobs:
           cat > .env <<'EOF'
           AI_API_ENABLED=true
           AI_ALLOW_INTERNAL_HTTP=true
+          AI_MAX_CONCURRENT_REQUESTS=1
           AI_DEFAULT_PROVIDER=ollama
           AI_PROVIDERS_JSON='[{"id":"ollama","name":"CI Ollama","protocol":"openai-compatible","baseUrl":"http://ollama:11434/v1","model":"qwen2.5:0.5b","capabilities":["chat"]}]'
           OLLAMA_MODEL=qwen2.5:0.5b
