@@ -26,4 +26,8 @@ test("workspace import requires a bounded JSON array and unique identifiers", ()
     { id: "duplicate", title: "Two", content: "b" }
   ], { idFactory: () => `new-${++nextId}`, now: () => "2026-01-01T00:00:00.000Z" });
   assert.notEqual(items[0].id, items[1].id);
+  const importedOverExisting = validateWorkspaceImport([{ id: "already-here", title: "Imported", content: "x" }], {
+    existingIds: new Set(["already-here"]), idFactory: () => "new-id", now: () => "2026-01-01T00:00:00.000Z"
+  });
+  assert.equal(importedOverExisting[0].id, "new-id");
 });
