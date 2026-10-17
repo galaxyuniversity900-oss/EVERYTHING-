@@ -9,10 +9,12 @@
   <meta name="description" content="A lightweight workspace for browser-based apps, with optional server-side AI integration.">
   <title>EVERYTHING- | Lightweight Workspace</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/auth.css">
   <link rel="stylesheet" href="/ai.css">
   <link rel="stylesheet" href="/workspace.css">
   <link rel="stylesheet" href="/mcp.css">
   <link rel="stylesheet" href="/remote.css">
+  <script type="module" src="/auth.js"></script>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/ai.js"></script>
   <script type="module" src="/workspace.js"></script>
@@ -23,8 +25,24 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="EVERYTHING home"><span class="brand-mark">E</span><span>EVERYTHING<span class="brand-dash">-</span></span></a>
-    <div class="system-state"><span class="state-dot" id="health-dot"></span><span id="health-label">Checking core…</span></div>
+    <div class="system-state"><span class="state-dot" id="health-dot"></span><span id="health-label">Checking core…</span></div><button id="auth-logout" class="auth-logout" type="button" hidden>Sign out</button>
   </header>
+
+  <div id="auth-overlay" class="auth-overlay" hidden>
+    <section class="auth-card" aria-labelledby="auth-title">
+      <span class="auth-mark" aria-hidden="true">E</span>
+      <p class="eyebrow">EVERYTHING- WORKSPACE</p>
+      <h2 id="auth-title">Sign in to continue.</h2>
+      <p>This server requires its configured access password. Your password is sent only to this server over the current connection.</p>
+      <form id="auth-form">
+        <label for="auth-password">Access password</label>
+        <input id="auth-password" type="password" autocomplete="current-password" maxlength="512" required>
+        <button type="submit">Sign in ↗</button>
+      </form>
+      <p id="auth-status" class="auth-status" role="status"></p>
+    </section>
+  </div>
+
   <main class="layout">
     <section class="hero">
       <p class="eyebrow">ONE WORKSPACE · LIGHTWEIGHT BY DESIGN</p>
