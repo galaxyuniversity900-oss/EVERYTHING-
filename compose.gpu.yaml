@@ -1,0 +1,11 @@
+# Optional NVIDIA GPU override for the Ollama service.
+# Requires a Linux host with working NVIDIA drivers and NVIDIA Container Toolkit.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

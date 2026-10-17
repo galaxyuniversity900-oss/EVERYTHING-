@@ -55,6 +55,14 @@ Wait for the model download to finish, then use **Test connection** in the AI pa
 
 To stop inference while preserving downloaded models, run `docker compose stop ollama`. The regular workspace stays up.
 
+For a Linux server with NVIDIA drivers and NVIDIA Container Toolkit installed and working in Docker, you can enable GPU acceleration with the optional override:
+
+```sh
+docker compose -f compose.yaml -f compose.gpu.yaml --profile local-ai up -d
+```
+
+The override requests one NVIDIA GPU for Ollama only. It does not install GPU drivers or the Container Toolkit, and the CPU-only profile remains the default. The GPU override is not for Android/Termux or Docker Desktop; verify your NVIDIA container runtime before using it.
+
 ## Catalog provenance and limits
 
 The catalog is curated from the upstream [HeyPuter/everything repository](https://github.com/HeyPuter/everything), whose README describes the project as MIT-licensed. Each entry links back to its upstream source. The `hosted` flag is set only when the upstream README provides a demo link without a “Demo URL not yet provided” warning. A hosted link is an external service and is not embedded or self-hosted by EVERYTHING-. Upstream links and availability may change; re-check the source before relying on a demo.

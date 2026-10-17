@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0 — Optional NVIDIA inference acceleration
+
+- Added a separate Compose override that requests one NVIDIA GPU for the optional Ollama service.
+- Extended CI and release validation to check CPU-only, local-AI, and NVIDIA-overlay Compose configurations without requiring a GPU runner.
+- Documented the NVIDIA Container Toolkit prerequisite and kept CPU inference as the default.
+
 ## 0.9.0 — Optional self-hosted LLM runtime
 
 - Added an opt-in Ollama Compose profile with persistent model storage, an internal-only API, a one-time model pull, and RAM/CPU bounds.
