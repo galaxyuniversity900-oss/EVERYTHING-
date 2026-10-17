@@ -37,6 +37,7 @@ AI_ALLOW_INTERNAL_HTTP=true
 OLLAMA_MODEL=qwen2.5:1.5b
 OLLAMA_MEMORY_LIMIT=3g
 OLLAMA_CPUS=2.0
+OLLAMA_CONTEXT_LENGTH=4096
 AI_PROVIDERS_JSON='[{"id":"ollama","name":"Ollama (local service)","protocol":"openai-compatible","baseUrl":"http://ollama:11434/v1","model":"qwen2.5:1.5b","capabilities":["chat","coding"]}]'
 ```
 
@@ -50,7 +51,7 @@ docker compose exec ollama ollama list
 
 Wait for the model download to finish, then use **Test connection** in the AI panel and send a message. The model files are stored in the persistent `ollama-data` volume. The Ollama port is not published on the host; the workspace reaches the service over the private Compose network.
 
-`AI_ALLOW_INTERNAL_HTTP=true` only permits OpenAI-compatible HTTP endpoints whose hostname is a single-label internal service name, such as `ollama`. This is an explicit trust setting for private Compose networking, not a setting for public or untrusted endpoints. Keep AI disabled and this setting false when you do not need local inference. The default profile uses CPU inference and caps the Ollama container at 3 GB RAM and 2 CPUs; generation speed depends on the server's actual hardware. See [Ollama's Docker documentation](https://docs.ollama.com/docker) before adding GPU support.
+`AI_ALLOW_INTERNAL_HTTP=true` only permits OpenAI-compatible HTTP endpoints whose hostname is a single-label internal service name, such as `ollama`. This is an explicit trust setting for private Compose networking, not a setting for public or untrusted endpoints. Keep AI disabled and this setting false when you do not need local inference. The default profile uses CPU inference, a 4096-token context, one parallel request, no Ollama cloud routing, and caps the container at 3 GB RAM and 2 CPUs; generation speed depends on the server's actual hardware. See [Ollama's Docker documentation](https://docs.ollama.com/docker) before adding GPU support.
 
 To stop inference while preserving downloaded models, run `docker compose stop ollama`. The regular workspace stays up.
 
