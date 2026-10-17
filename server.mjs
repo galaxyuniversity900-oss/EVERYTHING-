@@ -14,7 +14,7 @@ const host = process.env.HOST || "127.0.0.1";
 const port = Number.parseInt(process.env.PORT || "8787", 10);
 const aiEnabled = process.env.AI_API_ENABLED === "true";
 const aiBaseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const localAiHost = (() => { try { return ["localhost", "127.0.0.1", "::1"].includes(new URL(aiBaseUrl).hostname); } catch { return false; } })();
+const localAiHost = (() => { try { return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(new URL(aiBaseUrl).hostname); } catch { return false; } })();
 const aiConfigured = aiEnabled && (Boolean(process.env.OPENAI_API_KEY) || localAiHost);
 const aiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const mcpConfigured = Boolean(process.env.MCP_SERVER_URL);
@@ -97,6 +97,7 @@ async function routeError(res, error, fallbackCode) {
 }
 
 const server = createServer(async (req, res) => {
+  if (!sameOriginIfProvided(req, res)) return;
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
   if (req.method === "GET" || req.method === "HEAD") {
