@@ -30,9 +30,12 @@ function validateMessages(messages) {
   });
 }
 
-async function requestJson({ url, headers, body, fetchImpl, timeoutMs }) {
+async function requestJson({ url, headers, body, fetchImpl, timeoutMs, signal }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, Math.min(Number(timeoutMs) || 60_000, MAX_TIMEOUT_MS)));
+  const abortFromCaller = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", abortFromCaller, { once: true });
   try {
     const response = await fetchImpl(url, {
       method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, redirect: "error"
@@ -46,14 +49,18 @@ async function requestJson({ url, headers, body, fetchImpl, timeoutMs }) {
     }
     return payload;
   } catch (error) {
-    if (error.name === "AbortError") throw Object.assign(new Error("AI provider request timed out"), { code: "provider_timeout", status: 504 });
+    if (error.name === "AbortError") {
+      if (signal?.aborted) throw Object.assign(new Error("AI request was cancelled"), { code: "provider_cancelled", status: 499 });
+      throw Object.assign(new Error("AI provider request timed out"), { code: "provider_timeout", status: 504 });
+    }
     throw error;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
-async function anthropicCompletion({ provider, messages, fetchImpl, timeoutMs }) {
+async function anthropicCompletion({ provider, messages, fetchImpl, timeoutMs, signal }) {
   if (!provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
   const normalized = validateMessages(messages);
   const systems = normalized.filter((message) => message.role === "system").map((message) => message.content);
@@ -68,14 +75,14 @@ async function anthropicCompletion({ provider, messages, fetchImpl, timeoutMs })
   const payload = await requestJson({
     url,
     headers: { "x-api-key": provider.apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json", accept: "application/json" },
-    body, fetchImpl, timeoutMs
+    body, fetchImpl, timeoutMs, signal
   });
   const content = Array.isArray(payload.content) ? payload.content.filter((part) => part.type === "text").map((part) => part.text || "").join("") : "";
   if (!content) throw Object.assign(new Error("Anthropic returned no text content"), { code: "invalid_provider_response", status: 502 });
   return { content, model: payload.model || provider.model, usage: payload.usage || null };
 }
 
-async function geminiCompletion({ provider, messages, fetchImpl, timeoutMs }) {
+async function geminiCompletion({ provider, messages, fetchImpl, timeoutMs, signal }) {
   if (!provider.apiKey) throw Object.assign(new Error("This provider requires a server-side API key"), { code: "provider_not_configured", status: 503 });
   const normalized = validateMessages(messages);
   const systemMessages = normalized.filter((message) => message.role === "system").map((message) => message.content);
@@ -91,7 +98,7 @@ async function geminiCompletion({ provider, messages, fetchImpl, timeoutMs }) {
   const payload = await requestJson({
     url,
     headers: { "x-goog-api-key": provider.apiKey, "content-type": "application/json", accept: "application/json" },
-    body, fetchImpl, timeoutMs
+    body, fetchImpl, timeoutMs, signal
   });
   const content = payload?.candidates?.[0]?.content?.parts?.filter((part) => typeof part.text === "string").map((part) => part.text).join("") || "";
   if (!content) throw Object.assign(new Error("Gemini returned no text content"), { code: "invalid_provider_response", status: 502 });
@@ -172,15 +179,15 @@ export async function checkProviderConnection({ provider, fetchImpl = fetch, tim
   }
 }
 
-export async function createProviderCompletion({ provider, messages, fetchImpl = fetch, timeoutMs } = {}) {
+export async function createProviderCompletion({ provider, messages, fetchImpl = fetch, timeoutMs, signal } = {}) {
   if (!provider || !provider.baseUrl || !provider.model) {
     throw Object.assign(new Error("AI provider configuration is incomplete"), { code: "provider_not_configured", status: 503 });
   }
   const protocol = provider.protocol || "openai-compatible";
   if (protocol === "openai-compatible") {
-    return createChatCompletion({ apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, messages, fetchImpl, timeoutMs, allowInternalHttp: provider.allowInternalHttp === true });
+    return createChatCompletion({ apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, messages, fetchImpl, timeoutMs, allowInternalHttp: provider.allowInternalHttp === true, signal });
   }
-  if (protocol === "anthropic") return anthropicCompletion({ provider, messages, fetchImpl, timeoutMs });
-  if (protocol === "gemini") return geminiCompletion({ provider, messages, fetchImpl, timeoutMs });
+  if (protocol === "anthropic") return anthropicCompletion({ provider, messages, fetchImpl, timeoutMs, signal });
+  if (protocol === "gemini") return geminiCompletion({ provider, messages, fetchImpl, timeoutMs, signal });
   throw Object.assign(new Error("Unsupported AI provider protocol"), { code: "unsupported_provider_protocol", status: 400 });
 }

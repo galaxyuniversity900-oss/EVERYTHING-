@@ -1,7 +1,7 @@
 import { createProviderCompletion } from "./provider-adapters.mjs";
 import { getAIProviderRegistry } from "./provider-registry.mjs";
 
-export async function routeAIChat({ env = process.env, messages, providerId, task = "chat", fetchImpl = fetch } = {}) {
+export async function routeAIChat({ env = process.env, messages, providerId, task = "chat", fetchImpl = fetch, signal } = {}) {
   const registry = getAIProviderRegistry(env);
   const configured = registry.providers.filter((provider) => provider.configured);
   if (!configured.length) {
@@ -27,7 +27,7 @@ export async function routeAIChat({ env = process.env, messages, providerId, tas
   let lastError;
   for (const provider of ordered) {
     try {
-      const result = await createProviderCompletion({ provider, messages, fetchImpl });
+      const result = await createProviderCompletion({ provider, messages, fetchImpl, signal });
       return { ...result, providerId: provider.id, providerName: provider.name, protocol: provider.protocol, task };
     } catch (error) {
       lastError = error;
