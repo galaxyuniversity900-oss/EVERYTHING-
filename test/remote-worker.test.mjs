@@ -33,6 +33,10 @@ async function listen(worker) {
 
 test("worker configuration requires a long token and valid public session base", () => {
   assert.throws(() => createRemoteWorker({ env: {} }), /WORKER_TOKEN/);
+  assert.throws(() => createRemoteWorker({ env: {
+    WORKER_TOKEN: token, WORKER_HOST: "eth0", WORKER_PUBLIC_BASE_URL: "https://runtime.example.test",
+    WORKER_SESSION_BASE_URL: "https://sessions.example.test", WORKER_APPS_JSON: "[]"
+  } }), /WORKER_HOST must be loopback/);
   assert.throws(() => createRemoteWorker({
     env: { WORKER_TOKEN: token, WORKER_PUBLIC_BASE_URL: "https://runtime.example.test", WORKER_SESSION_BASE_URL: "http://sessions.example.test", WORKER_APPS_JSON: "[]" }
   }), /WORKER_SESSION_BASE_URL/);
