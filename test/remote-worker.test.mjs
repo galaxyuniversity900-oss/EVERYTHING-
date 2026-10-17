@@ -141,7 +141,9 @@ test("worker advertises only configured apps and launches allowlisted containers
   try {
     const capabilities = await fetch(`${base}/v1/capabilities`, { headers: { authorization: `Bearer ${token}` } });
     assert.equal(capabilities.status, 200);
-    const advertisedApps = (await capabilities.json()).apps;
+    const capabilityData = await capabilities.json();
+    const advertisedApps = capabilityData.apps;
+    assert.deepEqual(capabilityData.capacity, { activeSessions: 0, pendingSessions: 0, maxSessions: 2, availableSlots: 2 });
     assert.deepEqual(advertisedApps.map((app) => app.id), ["desktop"]);
     assert.deepEqual(advertisedApps[0].resources, { memory: "1g", shmSize: "256m", cpus: 1, pids: 128, gpus: 0 });
 

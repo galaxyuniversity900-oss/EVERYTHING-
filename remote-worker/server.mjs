@@ -363,6 +363,7 @@ export function createRemoteWorker({ env = process.env, execFileImpl = execFileD
     if (req.method === "GET" && url.pathname === "/v1/capabilities") {
       return sendJson(res, 200, {
         provider: "EVERYTHING Docker Session Worker",
+        capacity: { activeSessions: sessions.size, pendingSessions, maxSessions: config.maxSessions, availableSlots: Math.max(0, config.maxSessions - sessions.size - pendingSessions) },
         apps: config.apps.map(({ id, name, description, memory, shmSize, cpus, pids, gpuCount }) => ({
           id, name, description,
           resources: { memory, shmSize, cpus, pids, gpus: gpuCount }
