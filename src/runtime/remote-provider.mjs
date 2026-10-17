@@ -74,7 +74,7 @@ export function createRemoteRuntime({ env = process.env, fetchImpl = fetch, time
     if (typeof appId !== "string" || !/^[a-zA-Z0-9_.-]{1,80}$/.test(appId)) {
       throw Object.assign(new Error("Remote app id is invalid"), { code: "invalid_remote_app_id", status: 400 });
     }
-    const result = await request("v1/sessions", { method: "POST", body: { appId, client: "everything-platform", version: "0.9.0" } });
+    const result = await request("v1/sessions", { method: "POST", body: { appId, client: "everything-platform", version: "0.10.0" } });
     if (!result || typeof result.id !== "string" || result.id.length > 200 || typeof result.url !== "string") {
       throw Object.assign(new Error("Remote runtime returned an invalid session"), { code: "invalid_remote_session", status: 502 });
     }
