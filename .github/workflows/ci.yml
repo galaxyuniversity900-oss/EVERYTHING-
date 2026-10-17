@@ -79,3 +79,5 @@ jobs:
           test "$AI_STATUS" = "503"
           MCP_STATUS=$(curl --silent --output /tmp/everything-mcp-disabled.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
           test "$MCP_STATUS" = "503"
+          HOST_STATUS=$(curl --silent --output /tmp/everything-host-blocked.json --write-out '%{http_code}' -X POST http://127.0.0.1:18787/api/mcp/tools/call -H 'Host: attacker.example' -H 'content-type: application/json' --data '{"name":"echo","arguments":{},"confirmed":true}')
+          test "$HOST_STATUS" = "403"
