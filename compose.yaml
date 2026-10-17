@@ -67,7 +67,7 @@ services:
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
     entrypoint: ["/bin/sh", "-lc"]
-    command: ["ollama pull \"${OLLAMA_MODEL}\""]
+    command: ["ollama pull \"$${OLLAMA_MODEL}\""]
 
 volumes:
   ollama-data:
