@@ -38,10 +38,14 @@ test("AI adapter calls a compatible endpoint and normalizes the response", async
   assert.equal(result.usage.total_tokens, 4);
 });
 
-test("AI adapter refuses cleartext remote provider URLs", async () => {
+test("AI adapter refuses cleartext remote provider URLs and inline query tokens", async () => {
   await assert.rejects(
     createChatCompletion({ apiKey: "test-key", baseUrl: "http://example.test/v1", model: "x", messages: [{ role: "user", content: "hi" }] }),
     (error) => error.code === "insecure_provider_url"
+  );
+  await assert.rejects(
+    createChatCompletion({ apiKey: "test-key", baseUrl: "https://example.test/v1?token=inline", model: "x", messages: [{ role: "user", content: "hi" }] }),
+    (error) => error.code === "unsafe_provider_url"
   );
 });
 
