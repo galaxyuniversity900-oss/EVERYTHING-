@@ -1,0 +1,67 @@
+name: Container Build
+
+on:
+  push:
+    branches: ["main", "phase-4/**"]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.yaml"
+      - "server.mjs"
+      - "src/**"
+      - "public/**"
+      - ".github/workflows/container.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.yaml"
+      - "server.mjs"
+      - "src/**"
+      - "public/**"
+      - ".github/workflows/container.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local environment
+        run: cp .env.example .env
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build image
+        run: docker compose build
+      - name: Start restricted local container
+        run: docker compose up -d
+      - name: Verify HTTP health and app catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/api/health > /tmp/health.json; then break; fi
+            sleep 1
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const health = JSON.parse(fs.readFileSync("/tmp/health.json", "utf8"));
+            if (health.status !== "ok") process.exit(1);
+          '
+          curl --fail --silent http://127.0.0.1:8787/api/apps | node --input-type=module -e '
+            let input = "";
+            for await (const chunk of process.stdin) input += chunk;
+            const payload = JSON.parse(input);
+            if (!Array.isArray(payload.apps) || payload.apps.length < 10) process.exit(1);
+          '
+          test "$(docker compose exec -T everything id -u)" != "0"
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' everything-platform)" = "true"
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop container
+        if: always()
+        run: docker compose down --remove-orphans
