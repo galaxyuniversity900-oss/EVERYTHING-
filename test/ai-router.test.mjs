@@ -51,3 +51,31 @@ test("router selects a provider that declares the requested task capability", as
   assert.match(requestedUrl, /coder\.example\.test/);
   assert.equal(result.providerId, "coder");
 });
+
+
+test("router propagates caller cancellation to the provider request without fallback", async () => {
+  const controller = new AbortController();
+  let receivedSignal;
+  const env = {
+    AI_API_ENABLED: "true",
+    AI_FALLBACK_ENABLED: "true",
+    OPENAI_API_KEY: "key-value",
+    OPENAI_MODEL: "model-a",
+    OPENAI_BASE_URL: "https://provider.example.test/v1"
+  };
+  const pending = routeAIChat({
+    env,
+    signal: controller.signal,
+    messages: [{ role: "user", content: "hello" }],
+    fetchImpl: async (_url, options) => {
+      receivedSignal = options.signal;
+      return await new Promise((resolve, reject) => {
+        options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      });
+    }
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+  await assert.rejects(pending, (error) => error.code === "provider_cancelled" && error.status === 499);
+  assert.equal(receivedSignal.aborted, true);
+});
