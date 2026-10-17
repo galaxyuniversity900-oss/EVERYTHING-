@@ -1,3 +1,4 @@
+import { readBoundedResponseText } from "../utils/read-bounded-response.mjs";
 import { createChatCompletion } from "./openai-compatible.mjs";
 
 const MAX_TIMEOUT_MS = 90_000;
@@ -14,35 +15,6 @@ function nativeProviderBase(baseUrl) {
   }
   base.pathname = base.pathname.endsWith("/") ? base.pathname : base.pathname + "/";
   return base;
-}
-
-async function readBoundedResponseText(response, maxBytes, message, code) {
-  if (!response.body) {
-    const text = await response.text();
-    if (Buffer.byteLength(text, "utf8") > maxBytes) {
-      throw Object.assign(new Error(message), { code, status: 502 });
-    }
-    return text;
-  }
-
-  const reader = response.body.getReader();
-  const chunks = [];
-  let totalBytes = 0;
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      totalBytes += value.byteLength;
-      if (totalBytes > maxBytes) {
-        await reader.cancel();
-        throw Object.assign(new Error(message), { code, status: 502 });
-      }
-      chunks.push(Buffer.from(value));
-    }
-    return Buffer.concat(chunks, totalBytes).toString("utf8");
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 function validateMessages(messages) {
@@ -65,7 +37,7 @@ async function requestJson({ url, headers, body, fetchImpl, timeoutMs }) {
     const response = await fetchImpl(url, {
       method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, redirect: "error"
     });
-    const text = await readBoundedResponseText(response, MAX_RESPONSE_BYTES, "AI provider response exceeded the size limit", "provider_response_too_large");
+    const text = await readBoundedResponseText(response, { maxBytes: MAX_RESPONSE_BYTES, message: "AI provider response exceeded the size limit", code: "provider_response_too_large" });
     let payload = {};
     try { payload = text ? JSON.parse(text) : {}; }
     catch { throw Object.assign(new Error("AI provider returned invalid JSON"), { code: "invalid_provider_response", status: 502 }); }
@@ -172,7 +144,7 @@ export async function checkProviderConnection({ provider, fetchImpl = fetch, tim
   const started = Date.now();
   try {
     const response = await fetchImpl(url, { method: "GET", headers, signal: controller.signal, redirect: "error" });
-    const text = await readBoundedResponseText(response, MAX_CHECK_RESPONSE_BYTES, "Provider model-list response exceeded the size limit", "provider_response_too_large");
+    const text = await readBoundedResponseText(response, { maxBytes: MAX_CHECK_RESPONSE_BYTES, message: "Provider model-list response exceeded the size limit", code: "provider_response_too_large" });
     if (!response.ok) {
       throw Object.assign(new Error(`Provider returned HTTP ${response.status}`), { code: "provider_connection_failed", status: 502 });
     }
