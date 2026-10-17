@@ -35,14 +35,14 @@ npm start
 
 Open `http://127.0.0.1:8787`. The server binds to localhost by default. Do not expose it publicly until authentication, HTTPS, durable rate limiting, monitoring, and a deployment security review are in place.
 
-## Optional AI
+## Optional AI and model routing
 
-Cloud provider:
+Single cloud provider:
 
 ```env
 AI_API_ENABLED=true
 OPENAI_API_KEY=your_provider_key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=your-model
 OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
@@ -55,7 +55,11 @@ OPENAI_MODEL=your-installed-model-name
 OPENAI_BASE_URL=http://127.0.0.1:11434/v1
 ```
 
-Restart after changing `.env`. The local endpoint and selected model must already be running. This repository does not download model weights. Remote providers must use HTTPS; HTTP is allowed only for loopback endpoints. Never commit `.env` or put provider keys in browser code. Messages are sent to the configured provider, so review its privacy and retention policy before sending sensitive data. AI is disabled by default.
+For multiple providers, set `AI_PROVIDERS_JSON` to a JSON array of profiles. Each profile uses `id`, `name`, `baseUrl`, `model`, optional `apiKeyEnv`, optional `enabled`, and optional `capabilities`. API keys are resolved from server environment variables named by `apiKeyEnv`; do not place key values in the JSON. For example, NVIDIA NIM uses an OpenAI-compatible API shape, so you can add a profile with `baseUrl: "https://integrate.api.nvidia.com/v1"` and set `apiKeyEnv: "NVIDIA_API_KEY"`. Replace the model ID with one available to your account.
+
+Set `AI_DEFAULT_PROVIDER` to select the default profile. Optional `AI_FALLBACK_ENABLED=true` enables fallback to another configured provider after eligible provider errors; this may retry a request and incur costs, so it is off by default. The UI can select a provider and task category, and the router can use declared capabilities when auto-routing.
+
+Restart after changing `.env`. Local endpoints and selected models must already be running; this project does not download model weights. Remote providers must use HTTPS; HTTP is allowed only for loopback endpoints. Never commit `.env` or put provider keys in browser code. Messages are sent to the selected provider, so review its privacy and retention policy before sending sensitive data. AI is disabled by default.
 
 ## Optional MCP tools
 
@@ -85,8 +89,8 @@ The service must implement `GET /v1/capabilities`, `POST /v1/sessions`, and `DEL
 
 - `GET /api/health` — service status.
 - `GET /api/apps?q=spreadsheet&category=Office` — catalog.
-- `GET /api/ai/providers` — AI configuration status, without secrets.
-- `POST /api/ai/chat` — non-streaming OpenAI-compatible chat.
+- `GET /api/ai/providers` — configured provider list and routing defaults, without secrets.
+- `POST /api/ai/chat` — non-streaming OpenAI-compatible chat with optional `providerId` and `task` fields.
 - `GET /api/runtime/capabilities?wasm=1&webgpu=0&network=1` — browser feature assessment plus adapter/configuration status.
 - `GET /api/mcp/status`, `GET /api/mcp/tools` — MCP status and tool discovery.
 - `POST /api/mcp/tools/call` — tool call; requires `confirmed: true`.
@@ -102,7 +106,7 @@ These endpoints are not a public multi-user service. Do not expose them publicly
 2. AI gateway foundation — implemented for one OpenAI-compatible non-streaming API shape.
 3. MCP discovery and confirmed calls — implemented for one configured Streamable HTTP server; protocol compatibility and auditing need broader testing.
 4. Remote runtime adapter — implemented; compatible worker deployment is external.
-5. Capability manifests and per-app adapters.
+5. Multi-provider routing and AI task capability manifests — foundation implemented; provider-specific advanced modalities still need adapters and tests.
 6. Local inference and low-resource device benchmarking.
 7. User identity, isolated persistent storage, import/export and recovery.
 8. Production hardening: authentication, durable rate limits, monitoring, accessibility, security review, and deployment automation.
